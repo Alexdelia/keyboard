@@ -17,7 +17,6 @@ _: {
     };
 
     ruff-format.enable = true;
-    ruff-check.enable = true;
   };
 
   settings.global.excludes = [

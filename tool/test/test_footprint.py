@@ -4,17 +4,16 @@ from pathlib import Path
 
 import pcbnew
 import pytest
-
 from kb.footprint import (
-    ENCODER_FOOTPRINT,
-    SENSOR_FOOTPRINT,
-    SENSOR_LAYER,
-    SENSOR_OFFSET_MM,
-    SENSOR_ORIENTATION_DEG,
-    SWITCH_FOOTPRINT,
-    place_sensor,
+	ENCODER_FOOTPRINT,
+	SENSOR_FOOTPRINT,
+	SENSOR_LAYER,
+	SENSOR_OFFSET_MM,
+	SENSOR_ORIENTATION_DEG,
+	SWITCH_FOOTPRINT,
+	place_sensor,
 )
-from kb.layout import half_positions, load_board
+from kb.layout import KeyPosition, half_positions, load_board
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 LIBRARY_DIR = BOARD_DIR / "pcb" / "lib"
@@ -35,306 +34,328 @@ PEC11R_TAB_SLOT_MM = (2.6, 1.8)
 SOT23_PADS_MM = {"1": (-0.9375, -0.95), "2": (-0.9375, 0.95), "3": (0.9375, 0)}
 
 
-def load_footprint(library_dir, footprint_id):
-    library, name = footprint_id.split(":")
-    loaded = pcbnew.FootprintLoad(str(Path(library_dir) / f"{library}.pretty"), name)
-    assert loaded is not None
-    return loaded
+def load_footprint(library_dir: str | Path, footprint_id: str) -> pcbnew.FOOTPRINT:
+	library, name = footprint_id.split(":")
+	loaded = pcbnew.FootprintLoad(str(Path(library_dir) / f"{library}.pretty"), name)
+	assert loaded is not None
+	return loaded
 
 
-def load_switch():
-    return load_footprint(LIBRARY_DIR, SWITCH_FOOTPRINT)
+def load_switch() -> pcbnew.FOOTPRINT:
+	return load_footprint(LIBRARY_DIR, SWITCH_FOOTPRINT)
 
 
-def load_stock_sensor():
-    return load_footprint(os.environ["KICAD10_FOOTPRINT_DIR"], SENSOR_FOOTPRINT)
+def load_stock_sensor() -> pcbnew.FOOTPRINT:
+	return load_footprint(os.environ["KICAD10_FOOTPRINT_DIR"], SENSOR_FOOTPRINT)
 
 
-def stock_sensor_on(board):
-    sensor = load_stock_sensor()
-    board.Add(sensor)
-    return sensor
-
-
-@pytest.fixture(scope="module")
-def footprint():
-    return load_switch()
+def stock_sensor_on(board: pcbnew.BOARD) -> pcbnew.FOOTPRINT:
+	sensor = load_stock_sensor()
+	board.Add(sensor)
+	return sensor
 
 
 @pytest.fixture(scope="module")
-def board():
-    return pcbnew.BOARD()
+def footprint() -> pcbnew.FOOTPRINT:
+	return load_switch()
 
 
 @pytest.fixture(scope="module")
-def sensed_keys():
-    board = load_board(BOARD_DIR)
-    return [
-        key
-        for side in ("left", "right")
-        for key in half_positions(board, side)
-        if key.kind != "knob"
-    ]
+def board() -> pcbnew.BOARD:
+	return pcbnew.BOARD()
 
 
 @pytest.fixture(scope="module")
-def most_rotated_key(sensed_keys):
-    return max(sensed_keys, key=lambda key: abs(key.kicad_orientation_deg))
+def sensed_keys() -> list[KeyPosition]:
+	board = load_board(BOARD_DIR)
+	return [
+		key
+		for side in ("left", "right")
+		for key in half_positions(board, side)
+		if key.kind != "knob"
+	]
 
 
 @pytest.fixture(scope="module")
-def placed_sensors(board, sensed_keys):
-    placed = []
-    for key in sensed_keys:
-        sensor = stock_sensor_on(board)
-        place_sensor(sensor, key)
-        placed.append((key, sensor))
-    return placed
+def most_rotated_key(sensed_keys: list[KeyPosition]) -> KeyPosition:
+	return max(sensed_keys, key=lambda key: abs(key.kicad_orientation_deg))
 
 
-def mm(point):
-    return pcbnew.ToMM(point.x), pcbnew.ToMM(point.y)
+@pytest.fixture(scope="module")
+def placed_sensors(
+	board: pcbnew.BOARD, sensed_keys: list[KeyPosition]
+) -> list[tuple[KeyPosition, pcbnew.FOOTPRINT]]:
+	placed = []
+	for key in sensed_keys:
+		sensor = stock_sensor_on(board)
+		place_sensor(sensor, key)
+		placed.append((key, sensor))
+	return placed
 
 
-def pad_coordinates_mm(footprint):
-    return [
-        coordinate for pad in footprint.Pads() for coordinate in mm(pad.GetPosition())
-    ]
+def mm(point: pcbnew.VECTOR2I) -> tuple[float, float]:
+	return pcbnew.ToMM(point.x), pcbnew.ToMM(point.y)
 
 
-def holes_by_diameter(footprint, diameter_mm):
-    return [
-        pad
-        for pad in footprint.Pads()
-        if pcbnew.ToMM(pad.GetDrillSize().x) == pytest.approx(diameter_mm)
-    ]
+def pad_coordinates_mm(footprint: pcbnew.FOOTPRINT) -> list[float]:
+	return [
+		coordinate for pad in footprint.Pads() for coordinate in mm(pad.GetPosition())
+	]
 
 
-def rectangle_size_mm(footprint, layer):
-    (rectangle,) = [
-        item
-        for item in footprint.GraphicalItems()
-        if item.GetLayer() == layer
-        and isinstance(item, pcbnew.PCB_SHAPE)
-        and item.GetShape() == pcbnew.SHAPE_T_RECT
-    ]
-    (start_x, start_y), (end_x, end_y) = (
-        mm(rectangle.GetStart()),
-        mm(rectangle.GetEnd()),
-    )
-    assert (start_x + end_x, start_y + end_y) == pytest.approx((0, 0))
-    return abs(end_x - start_x), abs(end_y - start_y)
+def holes_by_diameter(
+	footprint: pcbnew.FOOTPRINT, diameter_mm: float
+) -> list[pcbnew.PAD]:
+	return [
+		pad
+		for pad in footprint.Pads()
+		if pcbnew.ToMM(pad.GetDrillSize().x) == pytest.approx(diameter_mm)
+	]
 
 
-def texts(footprint, label):
-    return [
-        item
-        for item in footprint.GraphicalItems()
-        if isinstance(item, pcbnew.PCB_TEXT) and item.GetText() == label
-    ]
+def rectangle_size_mm(footprint: pcbnew.FOOTPRINT, layer: int) -> tuple[float, float]:
+	(rectangle,) = [
+		item
+		for item in footprint.GraphicalItems()
+		if item.GetLayer() == layer
+		and isinstance(item, pcbnew.PCB_SHAPE)
+		and item.GetShape() == pcbnew.SHAPE_T_RECT
+	]
+	(start_x, start_y), (end_x, end_y) = (
+		mm(rectangle.GetStart()),
+		mm(rectangle.GetEnd()),
+	)
+	assert (start_x + end_x, start_y + end_y) == pytest.approx((0, 0))
+	return abs(end_x - start_x), abs(end_y - start_y)
 
 
-def sensor_marker_on_placed_switch(key):
-    switch = load_switch()
-    switch.SetOrientationDegrees(key.kicad_orientation_deg)
-    switch.SetPosition(pcbnew.VECTOR2I_MM(key.x_mm, key.y_mm))
-    (marker,) = [
-        item for item in texts(switch, "SENSOR") if item.GetLayer() == pcbnew.F_Fab
-    ]
-    return mm(marker.GetPosition())
+def texts(footprint: pcbnew.FOOTPRINT, label: str) -> list[pcbnew.PCB_TEXT]:
+	return [
+		item
+		for item in footprint.GraphicalItems()
+		if isinstance(item, pcbnew.PCB_TEXT) and item.GetText() == label
+	]
 
 
-def center_hole_clearance_mm(sensor, key):
-    hole_center = pcbnew.VECTOR2I_MM(key.x_mm, key.y_mm)
-    copper_distances_mm = []
-    for pad in sensor.Pads():
-        copper = pcbnew.SHAPE_POLY_SET()
-        pad.TransformShapeToPolygon(
-            copper, SENSOR_LAYER, 0, pcbnew.FromMM(0.001), pcbnew.ERROR_INSIDE
-        )
-        copper_distances_mm.append(
-            pcbnew.ToMM(round(math.sqrt(copper.SquaredDistance(hole_center))))
-        )
-    return min(copper_distances_mm) - CENTER_HOLE_MM / 2
+def sensor_marker_on_placed_switch(key: KeyPosition) -> tuple[float, float]:
+	switch = load_switch()
+	switch.SetOrientationDegrees(key.kicad_orientation_deg)
+	switch.SetPosition(pcbnew.VECTOR2I_MM(key.x_mm, key.y_mm))
+	(marker,) = [
+		item for item in texts(switch, "SENSOR") if item.GetLayer() == pcbnew.F_Fab
+	]
+	return mm(marker.GetPosition())
 
 
-def long_axis_off_radial_deg(sensor, key):
-    pads = {pad.GetNumber(): mm(pad.GetPosition()) for pad in sensor.Pads()}
-    axis_x, axis_y = pads["2"][0] - pads["1"][0], pads["2"][1] - pads["1"][1]
-    sensor_x, sensor_y = mm(sensor.GetPosition())
-    radial_x, radial_y = sensor_x - key.x_mm, sensor_y - key.y_mm
-    angle = math.degrees(
-        math.atan2(
-            axis_x * radial_y - axis_y * radial_x, axis_x * radial_x + axis_y * radial_y
-        )
-    )
-    return abs((angle + 90) % 180 - 90)
+def center_hole_clearance_mm(sensor: pcbnew.FOOTPRINT, key: KeyPosition) -> float:
+	hole_center = pcbnew.VECTOR2I_MM(key.x_mm, key.y_mm)
+	copper_distances_mm = []
+	for pad in sensor.Pads():
+		copper = pcbnew.SHAPE_POLY_SET()
+		pad.TransformShapeToPolygon(
+			copper, SENSOR_LAYER, 0, pcbnew.FromMM(0.001), pcbnew.ERROR_INSIDE
+		)
+		copper_distances_mm.append(
+			pcbnew.ToMM(round(math.sqrt(copper.SquaredDistance(hole_center))))
+		)
+	return min(copper_distances_mm) - CENTER_HOLE_MM / 2
 
 
-def place_flipping_last(sensor, key):
-    sensor.SetOrientationDegrees(key.kicad_orientation_deg + SENSOR_ORIENTATION_DEG)
-    sensor.SetPosition(pcbnew.VECTOR2I_MM(*sensor_marker_on_placed_switch(key)))
-    sensor.Flip(sensor.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
+def long_axis_off_radial_deg(sensor: pcbnew.FOOTPRINT, key: KeyPosition) -> float:
+	pads = {pad.GetNumber(): mm(pad.GetPosition()) for pad in sensor.Pads()}
+	axis_x, axis_y = pads["2"][0] - pads["1"][0], pads["2"][1] - pads["1"][1]
+	sensor_x, sensor_y = mm(sensor.GetPosition())
+	radial_x, radial_y = sensor_x - key.x_mm, sensor_y - key.y_mm
+	angle = math.degrees(
+		math.atan2(
+			axis_x * radial_y - axis_y * radial_x, axis_x * radial_x + axis_y * radial_y
+		)
+	)
+	return abs((angle + 90) % 180 - 90)
 
 
-def test_hole_diameters(footprint):
-    diameters = sorted(pcbnew.ToMM(pad.GetDrillSize().x) for pad in footprint.Pads())
-    assert diameters == pytest.approx(
-        [ALIGNMENT_HOLE_MM, ALIGNMENT_HOLE_MM, CENTER_HOLE_MM]
-    )
+def place_flipping_last(sensor: pcbnew.FOOTPRINT, key: KeyPosition) -> None:
+	sensor.SetOrientationDegrees(key.kicad_orientation_deg + SENSOR_ORIENTATION_DEG)
+	sensor.SetPosition(pcbnew.VECTOR2I_MM(*sensor_marker_on_placed_switch(key)))
+	sensor.Flip(sensor.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
 
 
-def test_holes_are_unplated(footprint):
-    assert all(pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for pad in footprint.Pads())
+def test_hole_diameters(footprint: pcbnew.FOOTPRINT) -> None:
+	diameters = sorted(pcbnew.ToMM(pad.GetDrillSize().x) for pad in footprint.Pads())
+	assert diameters == pytest.approx(
+		[ALIGNMENT_HOLE_MM, ALIGNMENT_HOLE_MM, CENTER_HOLE_MM]
+	)
 
 
-def test_center_hole_at_origin(footprint):
-    (center_hole,) = holes_by_diameter(footprint, CENTER_HOLE_MM)
-    assert mm(center_hole.GetPosition()) == pytest.approx((0, 0))
+def test_holes_are_unplated(footprint: pcbnew.FOOTPRINT) -> None:
+	assert all(pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for pad in footprint.Pads())
 
 
-def test_alignment_holes_spacing(footprint):
-    first, second = (
-        mm(pad.GetPosition()) for pad in holes_by_diameter(footprint, ALIGNMENT_HOLE_MM)
-    )
-    assert abs(first[0] - second[0]) == pytest.approx(ALIGNMENT_HOLE_SPACING_MM)
-    assert first[0] + second[0] == pytest.approx(0)
-    assert (first[1], second[1]) == pytest.approx((0, 0))
+def test_center_hole_at_origin(footprint: pcbnew.FOOTPRINT) -> None:
+	(center_hole,) = holes_by_diameter(footprint, CENTER_HOLE_MM)
+	assert mm(center_hole.GetPosition()) == pytest.approx((0, 0))
 
 
-def test_courtyard_is_housing_top(footprint):
-    assert rectangle_size_mm(footprint, pcbnew.F_CrtYd) == pytest.approx(
-        (HOUSING_TOP_MM, HOUSING_TOP_MM)
-    )
+def test_alignment_holes_spacing(footprint: pcbnew.FOOTPRINT) -> None:
+	first, second = (
+		mm(pad.GetPosition()) for pad in holes_by_diameter(footprint, ALIGNMENT_HOLE_MM)
+	)
+	assert abs(first[0] - second[0]) == pytest.approx(ALIGNMENT_HOLE_SPACING_MM)
+	assert first[0] + second[0] == pytest.approx(0)
+	assert (first[1], second[1]) == pytest.approx((0, 0))
 
 
-def test_fab_outline_is_plate_cutout(footprint):
-    assert rectangle_size_mm(footprint, pcbnew.F_Fab) == pytest.approx(
-        (PLATE_CUTOUT_MM, PLATE_CUTOUT_MM)
-    )
+def test_courtyard_is_housing_top(footprint: pcbnew.FOOTPRINT) -> None:
+	assert rectangle_size_mm(footprint, pcbnew.F_CrtYd) == pytest.approx(
+		(HOUSING_TOP_MM, HOUSING_TOP_MM)
+	)
 
 
-def test_sensor_offset_within_cutout():
-    assert all(abs(axis) < PLATE_CUTOUT_MM / 2 for axis in SENSOR_OFFSET_MM)
+def test_fab_outline_is_plate_cutout(footprint: pcbnew.FOOTPRINT) -> None:
+	assert rectangle_size_mm(footprint, pcbnew.F_Fab) == pytest.approx(
+		(PLATE_CUTOUT_MM, PLATE_CUTOUT_MM)
+	)
 
 
-def test_sensor_markers_at_sensor_offset_on_both_fab_layers(footprint):
-    markers = texts(footprint, "SENSOR")
-    assert sorted(marker.GetLayer() for marker in markers) == sorted(
-        [pcbnew.F_Fab, pcbnew.B_Fab]
-    )
-    for marker in markers:
-        assert mm(marker.GetPosition()) == pytest.approx(SENSOR_OFFSET_MM)
+def test_sensor_offset_within_cutout() -> None:
+	assert all(abs(axis) < PLATE_CUTOUT_MM / 2 for axis in SENSOR_OFFSET_MM)
 
 
-def test_led_marker_opposite_sensor(footprint):
-    (marker,) = texts(footprint, "LED")
-    assert marker.GetLayer() == pcbnew.F_Fab
-    marker_x, marker_y = mm(marker.GetPosition())
-    assert marker_x == pytest.approx(0)
-    assert marker_y * SENSOR_OFFSET_MM[1] < 0
+def test_sensor_markers_at_sensor_offset_on_both_fab_layers(
+	footprint: pcbnew.FOOTPRINT,
+) -> None:
+	markers = texts(footprint, "SENSOR")
+	assert sorted(marker.GetLayer() for marker in markers) == sorted(
+		[pcbnew.F_Fab, pcbnew.B_Fab]
+	)
+	for marker in markers:
+		assert mm(marker.GetPosition()) == pytest.approx(SENSOR_OFFSET_MM)
 
 
-def test_stock_sensor_origin_is_body_center():
-    sensor = load_stock_sensor()
-    assert sorted(pad.GetNumber() for pad in sensor.Pads()) == sorted(SOT23_PADS_MM)
-    for pad in sensor.Pads():
-        assert mm(pad.GetPosition()) == pytest.approx(SOT23_PADS_MM[pad.GetNumber()])
-    body = [item for item in sensor.GraphicalItems() if item.GetLayer() == pcbnew.F_Fab]
-    box = body[0].GetBoundingBox()
-    for item in body[1:]:
-        box.Merge(item.GetBoundingBox())
-    assert mm(box.Centre()) == pytest.approx((0, 0), abs=POSITION_TOLERANCE_MM)
+def test_led_marker_opposite_sensor(footprint: pcbnew.FOOTPRINT) -> None:
+	(marker,) = texts(footprint, "LED")
+	assert marker.GetLayer() == pcbnew.F_Fab
+	marker_x, marker_y = mm(marker.GetPosition())
+	assert marker_x == pytest.approx(0)
+	assert marker_y * SENSOR_OFFSET_MM[1] < 0
 
 
-def test_placed_sensors_on_bottom(placed_sensors):
-    for key, sensor in placed_sensors:
-        assert sensor.GetLayer() == SENSOR_LAYER, key.id
-        assert all(pad.IsOnLayer(SENSOR_LAYER) for pad in sensor.Pads()), key.id
+def test_stock_sensor_origin_is_body_center() -> None:
+	sensor = load_stock_sensor()
+	assert sorted(pad.GetNumber() for pad in sensor.Pads()) == sorted(SOT23_PADS_MM)
+	for pad in sensor.Pads():
+		assert mm(pad.GetPosition()) == pytest.approx(SOT23_PADS_MM[pad.GetNumber()])
+	body = [item for item in sensor.GraphicalItems() if item.GetLayer() == pcbnew.F_Fab]
+	box = body[0].GetBoundingBox()
+	for item in body[1:]:
+		box.Merge(item.GetBoundingBox())
+	assert mm(box.Centre()) == pytest.approx((0, 0), abs=POSITION_TOLERANCE_MM)
 
 
-def test_placed_hall_element_under_switch_sensor_marker(placed_sensors):
-    for key, sensor in placed_sensors:
-        assert mm(sensor.GetPosition()) == pytest.approx(
-            sensor_marker_on_placed_switch(key), abs=POSITION_TOLERANCE_MM
-        ), key.id
+def test_placed_sensors_on_bottom(
+	placed_sensors: list[tuple[KeyPosition, pcbnew.FOOTPRINT]],
+) -> None:
+	for key, sensor in placed_sensors:
+		assert sensor.GetLayer() == SENSOR_LAYER, key.id
+		assert all(pad.IsOnLayer(SENSOR_LAYER) for pad in sensor.Pads()), key.id
 
 
-def test_placed_hall_element_offset_rotates_with_key(board, most_rotated_key):
-    sensor = stock_sensor_on(board)
-    place_sensor(sensor, most_rotated_key)
-    angle = math.radians(most_rotated_key.kicad_orientation_deg)
-    offset_x, offset_y = SENSOR_OFFSET_MM
-    expected = (
-        most_rotated_key.x_mm + offset_x * math.cos(angle) + offset_y * math.sin(angle),
-        most_rotated_key.y_mm - offset_x * math.sin(angle) + offset_y * math.cos(angle),
-    )
-    assert mm(sensor.GetPosition()) == pytest.approx(
-        expected, abs=POSITION_TOLERANCE_MM
-    )
+def test_placed_hall_element_under_switch_sensor_marker(
+	placed_sensors: list[tuple[KeyPosition, pcbnew.FOOTPRINT]],
+) -> None:
+	for key, sensor in placed_sensors:
+		assert mm(sensor.GetPosition()) == pytest.approx(
+			sensor_marker_on_placed_switch(key), abs=POSITION_TOLERANCE_MM
+		), key.id
 
 
-def test_placed_sensor_long_axis_radial(placed_sensors):
-    for key, sensor in placed_sensors:
-        assert long_axis_off_radial_deg(sensor, key) == pytest.approx(
-            SENSOR_ORIENTATION_DEG, abs=0.01
-        ), key.id
+def test_placed_hall_element_offset_rotates_with_key(
+	board: pcbnew.BOARD, most_rotated_key: KeyPosition
+) -> None:
+	sensor = stock_sensor_on(board)
+	place_sensor(sensor, most_rotated_key)
+	angle = math.radians(most_rotated_key.kicad_orientation_deg)
+	offset_x, offset_y = SENSOR_OFFSET_MM
+	expected = (
+		most_rotated_key.x_mm + offset_x * math.cos(angle) + offset_y * math.sin(angle),
+		most_rotated_key.y_mm - offset_x * math.sin(angle) + offset_y * math.cos(angle),
+	)
+	assert mm(sensor.GetPosition()) == pytest.approx(
+		expected, abs=POSITION_TOLERANCE_MM
+	)
 
 
-def test_placed_sensor_pads_clear_center_hole(placed_sensors):
-    for key, sensor in placed_sensors:
-        assert center_hole_clearance_mm(sensor, key) >= MIN_HOLE_CLEARANCE_MM, key.id
+def test_placed_sensor_long_axis_radial(
+	placed_sensors: list[tuple[KeyPosition, pcbnew.FOOTPRINT]],
+) -> None:
+	for key, sensor in placed_sensors:
+		assert long_axis_off_radial_deg(sensor, key) == pytest.approx(
+			SENSOR_ORIENTATION_DEG, abs=0.01
+		), key.id
 
 
-def test_place_sensor_is_idempotent(board, most_rotated_key):
-    sensor = stock_sensor_on(board)
-    place_sensor(sensor, most_rotated_key)
-    first = pad_coordinates_mm(sensor)
-    place_sensor(sensor, most_rotated_key)
-    assert sensor.GetLayer() == SENSOR_LAYER
-    assert pad_coordinates_mm(sensor) == pytest.approx(first)
+def test_placed_sensor_pads_clear_center_hole(
+	placed_sensors: list[tuple[KeyPosition, pcbnew.FOOTPRINT]],
+) -> None:
+	for key, sensor in placed_sensors:
+		assert center_hole_clearance_mm(sensor, key) >= MIN_HOLE_CLEARANCE_MM, key.id
 
 
-def test_flipping_after_rotation_breaks_rotated_key(board, most_rotated_key):
-    assert abs(most_rotated_key.kicad_orientation_deg) >= 20
-    sensor = stock_sensor_on(board)
-    place_flipping_last(sensor, most_rotated_key)
-    assert long_axis_off_radial_deg(sensor, most_rotated_key) > 45
-    assert center_hole_clearance_mm(sensor, most_rotated_key) < MIN_HOLE_CLEARANCE_MM
+def test_place_sensor_is_idempotent(
+	board: pcbnew.BOARD, most_rotated_key: KeyPosition
+) -> None:
+	sensor = stock_sensor_on(board)
+	place_sensor(sensor, most_rotated_key)
+	first = pad_coordinates_mm(sensor)
+	place_sensor(sensor, most_rotated_key)
+	assert sensor.GetLayer() == SENSOR_LAYER
+	assert pad_coordinates_mm(sensor) == pytest.approx(first)
 
 
-def test_place_sensor_rejects_sensor_without_board(most_rotated_key):
-    with pytest.raises(ValueError):
-        place_sensor(load_stock_sensor(), most_rotated_key)
+def test_flipping_after_rotation_breaks_rotated_key(
+	board: pcbnew.BOARD, most_rotated_key: KeyPosition
+) -> None:
+	assert abs(most_rotated_key.kicad_orientation_deg) >= 20
+	sensor = stock_sensor_on(board)
+	place_flipping_last(sensor, most_rotated_key)
+	assert long_axis_off_radial_deg(sensor, most_rotated_key) > 45
+	assert center_hole_clearance_mm(sensor, most_rotated_key) < MIN_HOLE_CLEARANCE_MM
 
 
-def test_encoder_footprint_follows_pec11r_layout():
-    encoder = load_footprint(LIBRARY_DIR, ENCODER_FOOTPRINT)
-    pads = {}
-    for pad in encoder.Pads():
-        pads.setdefault(pad.GetNumber(), []).append(pad)
-    assert sorted(pads) == ["A", "B", "C", "MP", "S1", "S2"]
-    (a,), (c,), (b,), (s1,), (s2,) = (
-        pads[name] for name in ("A", "C", "B", "S1", "S2")
-    )
-    assert [mm(p.GetPosition()) for p in (a, c, b)] == pytest.approx(
-        [(0, 0), (0, PEC11R_PIN_PITCH_MM), (0, 2 * PEC11R_PIN_PITCH_MM)]
-    )
-    assert sorted(mm(p.GetPosition()) for p in (s1, s2)) == pytest.approx(
-        [(PEC11R_ROW_SPACING_MM, 0), (PEC11R_ROW_SPACING_MM, PEC11R_SWITCH_PITCH_MM)]
-    )
-    for pad in (a, b, c, s1, s2):
-        assert pcbnew.ToMM(pad.GetDrillSize().x) == pytest.approx(PEC11R_PIN_DRILL_MM)
-    center_y = PEC11R_PIN_PITCH_MM
-    tabs = sorted(mm(p.GetPosition()) for p in pads["MP"])
-    assert tabs == pytest.approx(
-        [
-            (PEC11R_PIN_ROW_TO_CENTER_MM, center_y - PEC11R_TAB_SPACING_MM / 2),
-            (PEC11R_PIN_ROW_TO_CENTER_MM, center_y + PEC11R_TAB_SPACING_MM / 2),
-        ]
-    )
-    for tab in pads["MP"]:
-        drill = tab.GetDrillSize()
-        assert (pcbnew.ToMM(drill.x), pcbnew.ToMM(drill.y)) == pytest.approx(
-            PEC11R_TAB_SLOT_MM
-        )
+def test_place_sensor_rejects_sensor_without_board(
+	most_rotated_key: KeyPosition,
+) -> None:
+	with pytest.raises(ValueError, match="added to a board"):
+		place_sensor(load_stock_sensor(), most_rotated_key)
+
+
+def test_encoder_footprint_follows_pec11r_layout() -> None:
+	encoder = load_footprint(LIBRARY_DIR, ENCODER_FOOTPRINT)
+	pads = {}
+	for pad in encoder.Pads():
+		pads.setdefault(pad.GetNumber(), []).append(pad)
+	assert sorted(pads) == ["A", "B", "C", "MP", "S1", "S2"]
+	(a,), (c,), (b,), (s1,), (s2,) = (
+		pads[name] for name in ("A", "C", "B", "S1", "S2")
+	)
+	assert [mm(p.GetPosition()) for p in (a, c, b)] == pytest.approx(
+		[(0, 0), (0, PEC11R_PIN_PITCH_MM), (0, 2 * PEC11R_PIN_PITCH_MM)]
+	)
+	assert sorted(mm(p.GetPosition()) for p in (s1, s2)) == pytest.approx(
+		[(PEC11R_ROW_SPACING_MM, 0), (PEC11R_ROW_SPACING_MM, PEC11R_SWITCH_PITCH_MM)]
+	)
+	for pad in (a, b, c, s1, s2):
+		assert pcbnew.ToMM(pad.GetDrillSize().x) == pytest.approx(PEC11R_PIN_DRILL_MM)
+	center_y = PEC11R_PIN_PITCH_MM
+	tabs = sorted(mm(p.GetPosition()) for p in pads["MP"])
+	assert tabs == pytest.approx(
+		[
+			(PEC11R_PIN_ROW_TO_CENTER_MM, center_y - PEC11R_TAB_SPACING_MM / 2),
+			(PEC11R_PIN_ROW_TO_CENTER_MM, center_y + PEC11R_TAB_SPACING_MM / 2),
+		]
+	)
+	for tab in pads["MP"]:
+		drill = tab.GetDrillSize()
+		assert (pcbnew.ToMM(drill.x), pcbnew.ToMM(drill.y)) == pytest.approx(
+			PEC11R_TAB_SLOT_MM
+		)

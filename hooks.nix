@@ -4,6 +4,9 @@ let
 
   treefmtEval = inputs.treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
 
+  python = pkgs.python3.withPackages (ps: [ ps.pytest ]);
+  pcbnewSitePackages = "${pkgs.kicad.base}/${pkgs.python3.sitePackages}";
+
   pre-commit-check = inputs.pre-commit-hooks.lib.${system}.run {
     src = ./.;
     hooks = {
@@ -19,6 +22,20 @@ let
         stages = [ "pre-commit" ];
       };
 
+      ruff = {
+        enable = true;
+        stages = [ "pre-push" ];
+      };
+
+      ty = {
+        enable = true;
+        name = "ty";
+        description = "type check every python file";
+        entry = "${pkgs.lib.getExe pkgs.ty} check --python ${python} --extra-search-path ${pcbnewSitePackages} --extra-search-path tool";
+        files = "\\.py$";
+        stages = [ "pre-push" ];
+      };
+
       deadnix = {
         enable = true;
         stages = [ "pre-push" ];
@@ -32,8 +49,6 @@ let
       };
     };
   };
-
-  pcbnewSitePackages = "${pkgs.kicad.base}/${pkgs.python3.sitePackages}";
 in
 {
   checks.${system}.pre-commit-check = pre-commit-check;
@@ -47,7 +62,9 @@ in
     '';
     buildInputs = pre-commit-check.enabledPackages ++ [
       pkgs.kicad
-      (pkgs.python3.withPackages (ps: [ ps.pytest ]))
+      python
+      pkgs.ruff
+      pkgs.ty
       pkgs.freerouting
     ];
     PYTHONPATH = pcbnewSitePackages;

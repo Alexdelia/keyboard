@@ -12,13 +12,13 @@ SENSOR_LAYER = pcbnew.B_Cu
 
 
 def sensor_position_mm(key: KeyPosition) -> tuple[float, float]:
-    return to_board(key, SENSOR_OFFSET_MM)
+	return to_board(key, SENSOR_OFFSET_MM)
 
 
 def place_sensor(sensor: pcbnew.FOOTPRINT, key: KeyPosition) -> None:
-    if sensor.GetBoard() is None:
-        raise ValueError("sensor must be added to a board before flipping")
-    if sensor.GetLayer() != SENSOR_LAYER:
-        sensor.Flip(sensor.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
-    sensor.SetOrientationDegrees(key.kicad_orientation_deg + SENSOR_ORIENTATION_DEG)
-    sensor.SetPosition(pcbnew.VECTOR2I_MM(*sensor_position_mm(key)))
+	if sensor.GetBoard() is None:
+		raise ValueError("sensor must be added to a board before flipping")
+	if sensor.GetLayer() != SENSOR_LAYER:
+		sensor.Flip(sensor.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
+	sensor.SetOrientationDegrees(key.kicad_orientation_deg + SENSOR_ORIENTATION_DEG)
+	sensor.SetPosition(pcbnew.VECTOR2I_MM(*sensor_position_mm(key)))
