@@ -6,6 +6,7 @@ import pcbnew
 import pytest
 
 from kb.footprint import (
+    ENCODER_FOOTPRINT,
     SENSOR_FOOTPRINT,
     SENSOR_LAYER,
     SENSOR_OFFSET_MM,
@@ -24,6 +25,13 @@ HOUSING_TOP_MM = 14.60
 PLATE_CUTOUT_MM = 14.00
 MIN_HOLE_CLEARANCE_MM = 0.2
 POSITION_TOLERANCE_MM = 0.001
+PEC11R_PIN_PITCH_MM = 2.5
+PEC11R_ROW_SPACING_MM = 14.5
+PEC11R_SWITCH_PITCH_MM = 5.0
+PEC11R_PIN_ROW_TO_CENTER_MM = 7.5
+PEC11R_TAB_SPACING_MM = 13.2
+PEC11R_PIN_DRILL_MM = 1.0
+PEC11R_TAB_SLOT_MM = (2.6, 1.8)
 SOT23_PADS_MM = {"1": (-0.9375, -0.95), "2": (-0.9375, 0.95), "3": (0.9375, 0)}
 
 
@@ -298,3 +306,35 @@ def test_flipping_after_rotation_breaks_rotated_key(board, most_rotated_key):
 def test_place_sensor_rejects_sensor_without_board(most_rotated_key):
     with pytest.raises(ValueError):
         place_sensor(load_stock_sensor(), most_rotated_key)
+
+
+def test_encoder_footprint_follows_pec11r_layout():
+    encoder = load_footprint(LIBRARY_DIR, ENCODER_FOOTPRINT)
+    pads = {}
+    for pad in encoder.Pads():
+        pads.setdefault(pad.GetNumber(), []).append(pad)
+    assert sorted(pads) == ["A", "B", "C", "MP", "S1", "S2"]
+    (a,), (c,), (b,), (s1,), (s2,) = (
+        pads[name] for name in ("A", "C", "B", "S1", "S2")
+    )
+    assert [mm(p.GetPosition()) for p in (a, c, b)] == pytest.approx(
+        [(0, 0), (0, PEC11R_PIN_PITCH_MM), (0, 2 * PEC11R_PIN_PITCH_MM)]
+    )
+    assert sorted(mm(p.GetPosition()) for p in (s1, s2)) == pytest.approx(
+        [(PEC11R_ROW_SPACING_MM, 0), (PEC11R_ROW_SPACING_MM, PEC11R_SWITCH_PITCH_MM)]
+    )
+    for pad in (a, b, c, s1, s2):
+        assert pcbnew.ToMM(pad.GetDrillSize().x) == pytest.approx(PEC11R_PIN_DRILL_MM)
+    center_y = PEC11R_PIN_PITCH_MM
+    tabs = sorted(mm(p.GetPosition()) for p in pads["MP"])
+    assert tabs == pytest.approx(
+        [
+            (PEC11R_PIN_ROW_TO_CENTER_MM, center_y - PEC11R_TAB_SPACING_MM / 2),
+            (PEC11R_PIN_ROW_TO_CENTER_MM, center_y + PEC11R_TAB_SPACING_MM / 2),
+        ]
+    )
+    for tab in pads["MP"]:
+        drill = tab.GetDrillSize()
+        assert (pcbnew.ToMM(drill.x), pcbnew.ToMM(drill.y)) == pytest.approx(
+            PEC11R_TAB_SLOT_MM
+        )

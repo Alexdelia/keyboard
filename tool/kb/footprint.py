@@ -6,6 +6,7 @@ from kb.layout import KeyPosition
 
 SWITCH_FOOTPRINT = "icarus:Gateron_KS33_Magnetic_Jade"
 SENSOR_FOOTPRINT = "Package_TO_SOT_SMD:SOT-23"
+ENCODER_FOOTPRINT = "icarus:RotaryEncoder_Bourns_PEC11R-4xxxF-Sxxxx_Vertical"
 
 SENSOR_OFFSET_MM = (0.0, 4.30)
 SENSOR_ORIENTATION_DEG = 0.0

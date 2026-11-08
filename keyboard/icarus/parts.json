@@ -44,17 +44,19 @@
 		"supplyCurrentMaxMa": 0.16
 	},
 	"ldo": {
-		"mpn": "TLV75733PDYDR",
+		"mpn": "TLV75733PDBVR",
 		"manufacturer": "Texas Instruments",
-		"lcsc": "C22399950",
-		"package": "SOT-23-5 (DYD, thermally enhanced)",
+		"lcsc": "C485517",
+		"package": "SOT-23-5 (DBV)",
 		"datasheet": "https://www.ti.com/lit/ds/symlink/tlv757p.pdf",
 		"jlcType": "Extended",
-		"stockSeen": "13667 on 2026-11-08",
+		"stockSeen": "38405 on 2026-11-08",
 		"outputVoltage": 3.3,
 		"outputCurrentMaxMa": 1000,
-		"dropoutMaxMv": 500,
-		"quiescentCurrentMaxMa": 0.04
+		"dropoutMaxMv": 475,
+		"quiescentCurrentMaxMa": 0.04,
+		"thermalResistanceJaCPerW": 231.1,
+		"exposedPad": false
 	},
 	"usbc": {
 		"mpn": "TYPE-C-31-M-12",
@@ -76,28 +78,31 @@
 		"stockSeen": "23494 on 2026-11-08"
 	},
 	"fuse": {
-		"mpn": "MF-NSMF050-2",
+		"mpn": "MF-NSMF075-2",
 		"manufacturer": "Bourns",
-		"lcsc": "C75464",
+		"lcsc": "C89653",
 		"package": "1206",
 		"datasheet": "https://www.bourns.com/docs/Product-Datasheets/mfnsmf.pdf",
 		"jlcType": "Extended",
-		"stockSeen": "66314 on 2026-11-08",
-		"holdCurrentMa": 500,
-		"tripCurrentMa": 1000
+		"stockSeen": "10722 on 2026-11-08",
+		"holdCurrentMa": 750,
+		"holdCurrentAt50CMa": 610,
+		"tripCurrentMa": 1500,
+		"resistanceMaxOhm": 0.4
 	},
 	"encoder": {
-		"mpn": "EC11N1525404",
-		"manufacturer": "Alps Alpine",
-		"lcsc": "C470748",
-		"package": "EC11 through-hole vertical",
-		"datasheet": "https://tech.alpsalpine.com/e/products/detail/EC11N1525404/",
+		"mpn": "PEC11R-4215F-S0024",
+		"manufacturer": "Bourns",
+		"lcsc": "C143790",
+		"package": "PEC11R through-hole vertical, PC pin (EC11-class 12 mm)",
+		"datasheet": "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf",
 		"jlcType": "Extended",
-		"stockSeen": "327 on 2026-11-08",
+		"stockSeen": "4251 on 2026-11-08",
 		"shaftLengthMm": 15,
+		"shaft": "metal flatted",
 		"pushSwitch": true,
-		"detents": 30,
-		"pulsesPerRevolution": 15
+		"detents": 24,
+		"pulsesPerRevolution": 24
 	},
 	"sensor": {
 		"mpn": "DRV5055A3QDBZR",
@@ -112,5 +117,153 @@
 		"respondsToPole": "both",
 		"sensitivityMvPerMt": 15,
 		"supplyCurrentMaxMa": 4
+	},
+	"res_27r_0402": {
+		"mpn": "0402WGF270JTCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C25100",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2205311900_UNI-ROYAL-Uniroyal-Elec-0402WGF270JTCE_C25100.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "707497 on 2026-11-08",
+		"value": "27"
+	},
+	"res_1k_0402": {
+		"mpn": "0402WGF1001TCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C11702",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2206010216_UNI-ROYAL-Uniroyal-Elec-0402WGF1001TCE_C11702.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "33737632 on 2026-11-08",
+		"value": "1k"
+	},
+	"res_5k1_0402": {
+		"mpn": "0402WGF5101TCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C25905",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2206010045_UNI-ROYAL-Uniroyal-Elec-0402WGF5101TCE_C25905.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "4520214 on 2026-11-08",
+		"value": "5.1k"
+	},
+	"res_10k_0402": {
+		"mpn": "0402WGF1002TCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C25744",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2411221126_UNI-ROYAL-Uniroyal-Elec-0402WGF1002TCE_C25744.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "22746704 on 2026-11-08",
+		"value": "10k"
+	},
+	"res_2k2_0402": {
+		"mpn": "0402WGF2201TCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C25879",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2206010045_UNI-ROYAL-Uniroyal-Elec-0402WGF2201TCE_C25879.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "3372180 on 2026-11-08",
+		"value": "2.2k"
+	},
+	"res_3k3_0402": {
+		"mpn": "0402WGF3301TCE",
+		"manufacturer": "UNI-ROYAL",
+		"lcsc": "C25890",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2206010045_UNI-ROYAL-Uniroyal-Elec-0402WGF3301TCE_C25890.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "1473805 on 2026-11-08",
+		"value": "3.3k"
+	},
+	"cap_15p_0402": {
+		"mpn": "0402CG150J500NT",
+		"manufacturer": "FH (Guangdong Fenghua)",
+		"lcsc": "C1548",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_FH--Guangdong-Fenghua-Advanced-Tech-0402CG150J500NT_C1548.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "1203968 on 2026-11-08",
+		"value": "15pF",
+		"ratedVoltage": 50
+	},
+	"cap_10n_0402": {
+		"mpn": "CL05B103KB5NNNC",
+		"manufacturer": "Samsung Electro-Mechanics",
+		"lcsc": "C15195",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Samsung-Electro-Mechanics-CL05B103KB5NNNC_C15195.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "5156579 on 2026-11-08",
+		"value": "10nF",
+		"ratedVoltage": 50
+	},
+	"cap_100n_0402": {
+		"mpn": "CL05B104KO5NNNC",
+		"manufacturer": "Samsung Electro-Mechanics",
+		"lcsc": "C1525",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Samsung-Electro-Mechanics-CL05B104KO5NNNC_C1525.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "34212501 on 2026-11-08",
+		"value": "100nF",
+		"ratedVoltage": 16
+	},
+	"cap_1u_0402": {
+		"mpn": "CL05A105KA5NQNC",
+		"manufacturer": "Samsung Electro-Mechanics",
+		"lcsc": "C52923",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Samsung-Electro-Mechanics-CL05A105KA5NQNC_C52923.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "11527874 on 2026-11-08",
+		"value": "1uF",
+		"ratedVoltage": 25
+	},
+	"cap_4u7_0402": {
+		"mpn": "CL05A475MP5NRNC",
+		"manufacturer": "Samsung Electro-Mechanics",
+		"lcsc": "C23733",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Samsung-Electro-Mechanics-CL05A475MP5NRNC_C23733.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "1032771 on 2026-11-08",
+		"value": "4.7uF",
+		"ratedVoltage": 10
+	},
+	"cap_10u_0402": {
+		"mpn": "CL05A106MQ5NUNC",
+		"manufacturer": "Samsung Electro-Mechanics",
+		"lcsc": "C15525",
+		"package": "0402",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2208231630_Samsung-Electro-Mechanics-CL05A106MQ5NUNC_C15525.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "9181766 on 2026-11-08",
+		"value": "10uF",
+		"ratedVoltage": 6.3
+	},
+	"schottky": {
+		"mpn": "B5819W SL",
+		"manufacturer": "Changjiang (CJ)",
+		"lcsc": "C8598",
+		"package": "SOD-123",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Jiangsu-Changjing-Electronics-Technology-Co---Ltd--B5819W-SL_C8598.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "854565 on 2026-11-08",
+		"value": "B5819W",
+		"forwardVoltageAt1AMv": 600,
+		"reverseVoltage": 40
+	},
+	"button": {
+		"mpn": "TS-1187A-B-A-B",
+		"manufacturer": "XKB Connection",
+		"lcsc": "C318884",
+		"package": "SMD-4P 5.1x5.1mm",
+		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_XKB-Connection-TS-1187A-B-A-B_C318884.pdf",
+		"jlcType": "Basic",
+		"stockSeen": "870946 on 2026-11-08",
+		"value": "TS-1187A"
 	}
 }

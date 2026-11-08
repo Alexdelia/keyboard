@@ -52,5 +52,6 @@ in
     ];
     PYTHONPATH = pcbnewSitePackages;
     KICAD10_FOOTPRINT_DIR = "${pkgs.kicad.libraries.footprints}/share/kicad/footprints";
+    KICAD10_SYMBOL_DIR = "${pkgs.kicad.libraries.symbols}/share/kicad/symbols";
   };
 }

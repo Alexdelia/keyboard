@@ -10,6 +10,8 @@ BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SENSED_KINDS = ("key", "thumb")
 SENSOR_TRAVEL_FLUX_DELTA_MT = 75 - 7.5
 MIN_SENSOR_SWING_MV = 400
+MIN_FUSE_HOLD_AT_50C_MA = 500
+SHORTEST_ENCODER_SHAFT_MM = 15
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +49,21 @@ def test_sensor_polarity(parts):
 def test_sensor_resolution(parts):
     swing_mv = SENSOR_TRAVEL_FLUX_DELTA_MT * parts["sensor"]["sensitivityMvPerMt"]
     assert swing_mv >= MIN_SENSOR_SWING_MV
+
+
+def test_encoder_steps_once_per_detent(parts):
+    encoder = parts["encoder"]
+    assert encoder["detents"] > 0
+    assert encoder["detents"] == encoder["pulsesPerRevolution"]
+    assert encoder["pushSwitch"]
+
+
+def test_encoder_has_shortest_available_shaft(parts):
+    assert parts["encoder"]["shaftLengthMm"] == SHORTEST_ENCODER_SHAFT_MM
+
+
+def test_fuse_holds_worst_case_when_warm(parts):
+    assert parts["fuse"]["holdCurrentAt50CMa"] >= MIN_FUSE_HOLD_AT_50C_MA
 
 
 def test_power_budget(parts, sensor_count):
