@@ -1,118 +1,113 @@
 {
-  "format": "layout-fit/1",
-  "convention": "mm. Per half in left-hand frame: origin = home key of originColumn, x toward thumb side, y down, before tilt. Right half drawn mirrored. tiltInwardDeg rotates half around origin, top toward the other half.",
-  "spacingMm": 19.05,
-  "gapBetweenHalvesMm": 250,
-  "rows": [
-    "number",
-    "top",
-    "home",
-    "bottom"
-  ],
-  "homeRow": "home",
-  "originColumn": "middle",
-  "halves": {
-    "left": {
-      "tiltInwardDeg": 15.5,
-      "columns": [
-        {
-          "name": "pinkyOuter",
-          "offsetMm": 16.5
-        },
-        {
-          "name": "pinky",
-          "offsetMm": 16.5
-        },
-        {
-          "name": "ring",
-          "offsetMm": 7.2
-        },
-        {
-          "name": "middle",
-          "offsetMm": 0
-        },
-        {
-          "name": "index",
-          "offsetMm": 9.1
-        },
-        {
-          "name": "indexInner",
-          "offsetMm": 16.2
-        }
-      ],
-      "thumbKeys": [
-        {
-          "xMm": -15.2,
-          "yMm": 51.5,
-          "rotationDeg": -10.5
-        },
-        {
-          "xMm": 5.8,
-          "yMm": 49.8,
-          "rotationDeg": 3
-        },
-        {
-          "xMm": 26.7,
-          "yMm": 54.2,
-          "rotationDeg": 19.5
-        },
-        {
-          "xMm": 45.6,
-          "yMm": 63.3,
-          "rotationDeg": 29
-        }
-      ]
-    },
-    "right": {
-      "tiltInwardDeg": 15.5,
-      "columns": [
-        {
-          "name": "pinkyOuter",
-          "offsetMm": 16.5
-        },
-        {
-          "name": "pinky",
-          "offsetMm": 16.5
-        },
-        {
-          "name": "ring",
-          "offsetMm": 7.2
-        },
-        {
-          "name": "middle",
-          "offsetMm": 0
-        },
-        {
-          "name": "index",
-          "offsetMm": 9.1
-        },
-        {
-          "name": "indexInner",
-          "offsetMm": 16.2
-        }
-      ],
-      "thumbKeys": [
-        {
-          "xMm": -15.2,
-          "yMm": 51.5,
-          "rotationDeg": -10.5
-        },
-        {
-          "xMm": 5.8,
-          "yMm": 49.8,
-          "rotationDeg": 3
-        },
-        {
-          "xMm": 26.7,
-          "yMm": 54.2,
-          "rotationDeg": 19.5
-        },
-        {
-          "xMm": 45.6,
-          "yMm": 63.3,
-          "rotationDeg": 29
-        }
-      ]
-    }
-  }
+	"format": "layout-fit/1",
+	"convention": "mm. Per half in left-hand frame: origin = home key of originColumn, x toward thumb side, y down, before tilt. Right half drawn mirrored. tiltInwardDeg rotates half around origin, top toward the other half.",
+	"spacingMm": 19.05,
+	"gapBetweenHalvesMm": 250,
+	"rows": ["number", "top", "home", "bottom"],
+	"homeRow": "home",
+	"originColumn": "middle",
+	"halves": {
+		"left": {
+			"tiltInwardDeg": 15.5,
+			"columns": [
+				{
+					"name": "pinkyOuter",
+					"offsetMm": 16.5
+				},
+				{
+					"name": "pinky",
+					"offsetMm": 16.5
+				},
+				{
+					"name": "ring",
+					"offsetMm": 7.2
+				},
+				{
+					"name": "middle",
+					"offsetMm": 0
+				},
+				{
+					"name": "index",
+					"offsetMm": 9.1
+				},
+				{
+					"name": "indexInner",
+					"offsetMm": 16.2
+				}
+			],
+			"thumbKeys": [
+				{
+					"xMm": -15.2,
+					"yMm": 51.5,
+					"rotationDeg": -10.5
+				},
+				{
+					"xMm": 5.8,
+					"yMm": 49.8,
+					"rotationDeg": 3
+				},
+				{
+					"xMm": 26.7,
+					"yMm": 54.2,
+					"rotationDeg": 19.5
+				},
+				{
+					"xMm": 45.6,
+					"yMm": 63.3,
+					"rotationDeg": 29
+				}
+			]
+		},
+		"right": {
+			"tiltInwardDeg": 15.5,
+			"columns": [
+				{
+					"name": "pinkyOuter",
+					"offsetMm": 16.5
+				},
+				{
+					"name": "pinky",
+					"offsetMm": 16.5
+				},
+				{
+					"name": "ring",
+					"offsetMm": 7.2
+				},
+				{
+					"name": "middle",
+					"offsetMm": 0
+				},
+				{
+					"name": "index",
+					"offsetMm": 9.1
+				},
+				{
+					"name": "indexInner",
+					"offsetMm": 16.2
+				}
+			],
+			"thumbKeys": [
+				{
+					"xMm": -15.2,
+					"yMm": 51.5,
+					"rotationDeg": -10.5
+				},
+				{
+					"xMm": 5.8,
+					"yMm": 49.8,
+					"rotationDeg": 3
+				},
+				{
+					"xMm": 26.7,
+					"yMm": 54.2,
+					"rotationDeg": 19.5
+				},
+				{
+					"xMm": 45.6,
+					"yMm": 63.3,
+					"rotationDeg": 29
+				}
+			]
+		}
+	}
 }
