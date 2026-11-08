@@ -1,6 +1,9 @@
 # nix
 /result
 
+# direnv
+/.direnv/
+
 # hook
 /.pre-commit-config.yaml
 
