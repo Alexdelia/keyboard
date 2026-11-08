@@ -14,32 +14,32 @@
   "left": {
     "fitted": true,
     "columnOffsetsMm": {
-      "pinkyOuter": 16.5,
-      "pinky": 16.5,
-      "ring": 7.2,
+      "pinkyOuter": 33.2,
+      "pinky": 26.7,
+      "ring": 9.1,
       "middle": 0,
-      "index": 9.1,
-      "indexInner": 16.2
+      "index": 3,
+      "indexInner": 9.2
     },
     "thumbKeys": [
       {
-        "xMm": -15.3,
-        "yMm": 53,
+        "xMm": 2.8,
+        "yMm": 51.1,
         "rotationDeg": -7
       },
       {
-        "xMm": 5.8,
-        "yMm": 51.7,
+        "xMm": 23.9,
+        "yMm": 50.3,
         "rotationDeg": 3
       },
       {
-        "xMm": 27.2,
-        "yMm": 56,
+        "xMm": 45.3,
+        "yMm": 54.6,
         "rotationDeg": 19.5
       },
       {
-        "xMm": 46.2,
-        "yMm": 65.5,
+        "xMm": 64.4,
+        "yMm": 63.6,
         "rotationDeg": 29
       }
     ]
