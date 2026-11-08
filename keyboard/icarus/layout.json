@@ -4,35 +4,35 @@
   "gapBetweenHalvesMm": 250,
   "convention": "per half, left-hand frame: origin middle finger home key, y down, x toward thumb side, before tilt",
   "left": {
-    "source": "flat.json",
+    "source": "mirror of right",
     "tiltInwardDeg": 15.5,
     "columnOffsetsMm": {
-      "pinkyOuter": 33.2,
-      "pinky": 26.7,
-      "ring": 9.1,
+      "pinkyOuter": 16.5,
+      "pinky": 16.5,
+      "ring": 7.2,
       "middle": 0,
-      "index": 3,
-      "indexInner": 9.2
+      "index": 9.1,
+      "indexInner": 16.2
     },
     "thumbKeys": [
       {
-        "xMm": 2.8,
-        "yMm": 51.1,
-        "rotationDeg": -7
+        "xMm": -15.2,
+        "yMm": 51.5,
+        "rotationDeg": -10.5
       },
       {
-        "xMm": 23.9,
-        "yMm": 50.3,
+        "xMm": 5.8,
+        "yMm": 49.8,
         "rotationDeg": 3
       },
       {
-        "xMm": 45.3,
-        "yMm": 54.6,
+        "xMm": 26.7,
+        "yMm": 54.2,
         "rotationDeg": 19.5
       },
       {
-        "xMm": 64.4,
-        "yMm": 63.6,
+        "xMm": 45.6,
+        "yMm": 63.3,
         "rotationDeg": 29
       }
     ]
