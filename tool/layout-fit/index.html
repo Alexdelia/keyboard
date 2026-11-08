@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout Fit</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --text: #1d2230;
+    --muted: #5b6475;
+    --border: #c9cfdb;
+    --key: #e6e9ef;
+    --key-stroke: #5b6475;
+    --home: #6b8afd;
+    --thumb: #9aa3b5;
+    --selected: #4a5468;
+    --origin: #f0a35e;
+    --card-inside: #f0a35e;
+    --card-outside: #3b82f6;
+    --error: #c2410c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161b;
+      --surface: #1d2027;
+      --text: #e7e9ee;
+      --muted: #9aa3b5;
+      --border: #3a4050;
+      --key: #2c313c;
+      --key-stroke: #8a93a6;
+      --home: #5a78f0;
+      --thumb: #5b6475;
+      --selected: #c9cfdb;
+      --error: #fb923c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161b;
+    --surface: #1d2027;
+    --text: #e7e9ee;
+    --muted: #9aa3b5;
+    --border: #3a4050;
+    --key: #2c313c;
+    --key-stroke: #8a93a6;
+    --home: #5a78f0;
+    --thumb: #5b6475;
+    --selected: #c9cfdb;
+    --error: #fb923c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .row { display: flex; gap: 12px 20px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .muted { color: var(--muted); }
+  .error { color: var(--error); }
+  button, select, input[type="file"]::file-selector-button { font: inherit; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; }
+  ul { margin: 4px 0; padding-left: 20px; }
+  #card { margin: 6px; border: 2px solid var(--card-inside); outline: 2px solid var(--card-outside); display: flex; align-items: center; justify-content: center; color: var(--card-inside); }
+  .board-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+  #board { display: block; max-width: none; touch-action: none; user-select: none; }
+  .key { fill: var(--key); stroke: var(--key-stroke); stroke-width: 0.3; cursor: grab; }
+  .key.home { fill: var(--home); }
+  .key.thumb { fill: var(--thumb); }
+  .key.selected { fill: var(--selected); }
+  .origin { fill: var(--origin); }
+  textarea { width: 100%; min-height: 120px; font: 12px/1.4 ui-monospace, monospace; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>Layout fit</h1>
+<p class="muted">Fit a split column-staggered layout to your hands at 1:1 scale. Import and export layout JSON files.</p>
+
+<section>
+  <h2>1. Calibrate</h2>
+  <p>Hold a bank card (ID-1, 85.6 x 54 mm) against the screen, top-left corners aligned. Adjust until the <strong style="color:var(--card-inside)">orange</strong> line is hidden behind the card and the <strong style="color:var(--card-outside)">blue</strong> line is fully visible, touching the card edge. Judge on straight edges, real cards have rounded corners.</p>
+  <div class="row">
+    <input id="ppm" type="range" min="2" max="12" step="0.01" style="width:320px">
+    <button id="ppm-down">-</button>
+    <button id="ppm-up">+</button>
+    <span id="ppm-label"></span>
+  </div>
+  <div id="card">card goes here</div>
+</section>
+
+<section>
+  <h2>2. Fit</h2>
+  <ul>
+    <li>drag a finger key: moves its whole column along the column direction</li>
+    <li>drag a thumb key: moves it. Click it, then slider or mouse wheel: rotates it</li>
+    <li>tilt rotates a whole half around its origin key (orange dot)</li>
+    <li>right half is stored in left-hand frame and drawn mirrored</li>
+  </ul>
+  <div class="row">
+    <label>Left tilt <input id="tilt-left" type="range" min="-10" max="45" step="0.5" style="width:150px"> <span id="tilt-left-label"></span></label>
+    <label>Right tilt <input id="tilt-right" type="range" min="-10" max="45" step="0.5" style="width:150px"> <span id="tilt-right-label"></span></label>
+    <label><input id="tilt-linked" type="checkbox"> same tilt both sides</label>
+  </div>
+  <div class="row">
+    <label>Gap between halves <input id="gap" type="range" min="0" max="400" step="1" style="width:150px"> <span id="gap-label"></span></label>
+    <label>Key spacing
+      <select id="spacing"><option value="19.05">19.05 mm</option><option value="18">18 mm</option></select>
+    </label>
+    <label>Selected thumb rotation <input id="thumb-rot" type="range" min="-45" max="60" step="0.5" style="width:150px"> <span id="thumb-rot-label"></span></label>
+  </div>
+  <div class="row">
+    <button id="undo">Undo (Ctrl+Z)</button>
+    <button id="redo">Redo (Ctrl+Shift+Z)</button>
+    <button id="reset">Reset to default</button>
+    <span id="history-label" class="muted"></span>
+  </div>
+  <div class="board-scroll">
+    <svg id="board"></svg>
+  </div>
+</section>
+
+<section>
+  <h2>3. Import / export</h2>
+  <div class="row">
+    <label>Import file <input id="import-file" type="file" accept=".json,application/json"></label>
+    <button id="import-paste">Import from text box</button>
+    <button id="export">Export file</button>
+    <button id="copy">Copy JSON</button>
+    <span id="io-status" class="muted"></span>
+  </div>
+  <p class="muted">Text box shows current layout. Paste JSON into it then "Import from text box" to load. Accepts this tool's format plus older fit-result and fit-compare exports.</p>
+  <textarea id="json" spellcheck="false"></textarea>
+</section>
+
+<script>
+(function () {
+  const FORMAT = "layout-fit/1";
+  const CARD_WIDTH_MM = 85.6;
+  const CARD_HEIGHT_MM = 53.98;
+  const CSS_PX_PER_MM_NOMINAL = 96 / 25.4;
+  const KEYCAP_GAP_MM = 1;
+  const CALIBRATION_STORAGE_KEY = "layout-fit-calibration";
+  const LAYOUT_STORAGE_KEY = "layout-fit-layout";
+  const HISTORY_STORAGE_KEY = "layout-fit-history";
+  const HISTORY_SETTLE_MS = 400;
+  const HISTORY_LIMIT = 200;
+  const SIDES = ["left", "right"];
+  const LEGACY_COLUMN_ORDER = ["pinkyOuter", "pinky", "ring", "middle", "index", "indexInner"];
+  const PALM_THUMB_ARC_STEP_DEG = 12;
+  const THUMB_PITCH_U = 1.06;
+  const CONVENTION = "mm. Per half in left-hand frame: origin = home key of originColumn, x toward thumb side, y down, before tilt. Right half drawn mirrored. tiltInwardDeg rotates half around origin, top toward the other half.";
+
+  function defaultHalf() {
+    return {
+      tiltInwardDeg: 0,
+      columns: [
+        { name: "pinkyOuter", offsetMm: 9 },
+        { name: "pinky", offsetMm: 9 },
+        { name: "ring", offsetMm: 3 },
+        { name: "middle", offsetMm: 0 },
+        { name: "index", offsetMm: 3 },
+        { name: "indexInner", offsetMm: 5 },
+      ],
+      thumbKeys: [
+        { xMm: -10.5, yMm: 42, rotationDeg: -7 },
+        { xMm: 8.6, yMm: 42.9, rotationDeg: 5 },
+        { xMm: 28.6, yMm: 46.7, rotationDeg: 17 },
+        { xMm: 47.6, yMm: 54.3, rotationDeg: 29 },
+      ],
+    };
+  }
+
+  function defaultLayout() {
+    return {
+      format: FORMAT,
+      convention: CONVENTION,
+      spacingMm: 19.05,
+      gapBetweenHalvesMm: 60,
+      rows: ["number", "top", "home", "bottom"],
+      homeRow: "home",
+      originColumn: "middle",
+      halves: { left: defaultHalf(), right: defaultHalf() },
+    };
+  }
+
+  function readStorage(key) {
+    try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+  }
+
+  function writeStorage(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  function legacyHalf(source) {
+    const order = LEGACY_COLUMN_ORDER.filter(name => name in source.columnOffsetsMm);
+    const half = {
+      tiltInwardDeg: Number(source.tiltInwardDeg) || 0,
+      columns: order.map(name => ({ name, offsetMm: Number(source.columnOffsetsMm[name]) })),
+      thumbKeys: source.thumbKeys.map(t => ({ xMm: Number(t.xMm), yMm: Number(t.yMm), rotationDeg: Number(t.rotationDeg) })),
+    };
+    if (half.thumbKeys.length === 3) addPalmThumb(half, source.spacingMm || 19.05);
+    return half;
+  }
+
+  function addPalmThumb(half, spacingMm) {
+    const first = half.thumbKeys[0];
+    const rotationDeg = first.rotationDeg - PALM_THUMB_ARC_STEP_DEG;
+    const travel = (first.rotationDeg + rotationDeg) / 2 * Math.PI / 180;
+    half.thumbKeys.unshift({
+      xMm: first.xMm - THUMB_PITCH_U * spacingMm * Math.cos(travel),
+      yMm: first.yMm - THUMB_PITCH_U * spacingMm * Math.sin(travel),
+      rotationDeg,
+    });
+  }
+
+  function fromLegacy(data) {
+    const layout = defaultLayout();
+    layout.spacingMm = Number(data.spacingMm) || layout.spacingMm;
+    if (data.gapBetweenHalvesMm !== undefined) layout.gapBetweenHalvesMm = Number(data.gapBetweenHalvesMm);
+    SIDES.forEach(side => { layout.halves[side] = legacyHalf({ ...data[side], spacingMm: layout.spacingMm }); });
+    return layout;
+  }
+
+  function validate(layout) {
+    const problems = [];
+    if (!(layout.spacingMm > 0)) problems.push("spacingMm must be > 0");
+    if (!Array.isArray(layout.rows) || !layout.rows.includes(layout.homeRow)) problems.push("homeRow must be one of rows");
+    SIDES.forEach(side => {
+      const half = layout.halves && layout.halves[side];
+      if (!half) { problems.push(`halves.${side} missing`); return; }
+      if (!Array.isArray(half.columns) || !half.columns.length) problems.push(`halves.${side}.columns empty`);
+      else if (!half.columns.some(c => c.name === layout.originColumn)) problems.push(`halves.${side} has no originColumn "${layout.originColumn}"`);
+      if (!Array.isArray(half.thumbKeys)) problems.push(`halves.${side}.thumbKeys missing`);
+    });
+    return problems;
+  }
+
+  function parseLayout(text) {
+    const data = JSON.parse(text);
+    const layout = data.format === FORMAT ? { ...defaultLayout(), ...data, convention: CONVENTION } : data.left && data.right ? fromLegacy(data) : null;
+    if (!layout) throw new Error("unknown format: expected layout-fit/1, fit-result or fit-compare");
+    const problems = validate(layout);
+    if (problems.length) throw new Error(problems.join("; "));
+    return layout;
+  }
+
+  let pxPerMm = readStorage(CALIBRATION_STORAGE_KEY) || CSS_PX_PER_MM_NOMINAL;
+  let layout = (() => {
+    const saved = readStorage(LAYOUT_STORAGE_KEY);
+    return saved && !validate(saved).length ? saved : defaultLayout();
+  })();
+  let ui = { tiltLinked: true, selected: { side: "left", thumb: 0 } };
+  let drag = null;
+  let lastHalfRadiusMm = null;
+  let history = (() => {
+    const saved = readStorage(HISTORY_STORAGE_KEY);
+    return saved && saved.committed === JSON.stringify(layout) ? saved : { undo: [], redo: [], committed: JSON.stringify(layout) };
+  })();
+  let pendingCommit = null;
+
+  const $ = id => document.getElementById(id);
+  const svg = $("board");
+  const svgNs = "http://www.w3.org/2000/svg";
+
+  function commitNow() {
+    clearTimeout(pendingCommit);
+    pendingCommit = null;
+    const current = JSON.stringify(layout);
+    if (current === history.committed) return;
+    history.undo.push(history.committed);
+    if (history.undo.length > HISTORY_LIMIT) history.undo.shift();
+    history.redo = [];
+    history.committed = current;
+    writeStorage(HISTORY_STORAGE_KEY, history);
+  }
+
+  function scheduleCommit() {
+    clearTimeout(pendingCommit);
+    pendingCommit = setTimeout(commitNow, HISTORY_SETTLE_MS);
+  }
+
+  function restore(fromStack, toStack) {
+    if (drag) return;
+    commitNow();
+    if (!fromStack.length) return;
+    toStack.push(history.committed);
+    history.committed = fromStack.pop();
+    layout = JSON.parse(history.committed);
+    clampSelection();
+    writeStorage(HISTORY_STORAGE_KEY, history);
+    render({ recordHistory: false });
+  }
+
+  function clampSelection() {
+    const thumbs = layout.halves[ui.selected.side].thumbKeys;
+    ui.selected.thumb = Math.max(0, Math.min(ui.selected.thumb, thumbs.length - 1));
+  }
+
+  function replaceLayout(next) {
+    layout = next;
+    clampSelection();
+    render();
+    commitNow();
+  }
+
+  function element(name, attributes) {
+    const el = document.createElementNS(svgNs, name);
+    Object.entries(attributes).forEach(([k, v]) => el.setAttribute(k, v));
+    return el;
+  }
+
+  function keyRect(center, rotationDeg, classes, dataset) {
+    const size = layout.spacingMm - KEYCAP_GAP_MM;
+    const rect = element("rect", {
+      x: center.x - size / 2, y: center.y - size / 2, width: size, height: size, rx: 1.2,
+      class: ["key", ...classes].join(" "),
+      transform: `rotate(${rotationDeg} ${center.x} ${center.y})`,
+    });
+    Object.entries(dataset).forEach(([k, v]) => rect.dataset[k] = v);
+    return rect;
+  }
+
+  function originIndex(half) { return half.columns.findIndex(c => c.name === layout.originColumn); }
+
+  function halfRadiusMm() {
+    if (drag && lastHalfRadiusMm) return lastHalfRadiusMm;
+    const u = layout.spacingMm;
+    const homeIndex = layout.rows.indexOf(layout.homeRow);
+    const reach = SIDES.flatMap(side => {
+      const half = layout.halves[side];
+      const origin = originIndex(half);
+      const columnCorners = half.columns.flatMap((c, i) => [
+        { x: (i - origin) * u, y: (0 - homeIndex) * u + c.offsetMm },
+        { x: (i - origin) * u, y: (layout.rows.length - 1 - homeIndex) * u + c.offsetMm },
+      ]);
+      return [...columnCorners, ...half.thumbKeys.map(t => ({ x: t.xMm, y: t.yMm }))];
+    });
+    lastHalfRadiusMm = Math.max(...reach.map(p => Math.hypot(p.x, p.y))) + u;
+    return lastHalfRadiusMm;
+  }
+
+  function renderHalf(side, originX, originY) {
+    const half = layout.halves[side];
+    const u = layout.spacingMm;
+    const origin = originIndex(half);
+    const homeIndex = layout.rows.indexOf(layout.homeRow);
+    const mirror = side === "right" ? "scale(-1 1)" : "";
+    const group = element("g", { id: `half-${side}`, transform: `translate(${originX} ${originY}) ${mirror} rotate(${half.tiltInwardDeg})` });
+
+    half.columns.forEach((column, columnIndex) => {
+      layout.rows.forEach((rowName, rowIndex) => {
+        const center = { x: (columnIndex - origin) * u, y: (rowIndex - homeIndex) * u + column.offsetMm };
+        group.appendChild(keyRect(center, 0, rowIndex === homeIndex ? ["home"] : [], { side, column: columnIndex }));
+      });
+    });
+
+    half.thumbKeys.forEach((thumb, index) => {
+      const isSelected = ui.selected.side === side && ui.selected.thumb === index;
+      group.appendChild(keyRect({ x: thumb.xMm, y: thumb.yMm }, thumb.rotationDeg, ["thumb", ...(isSelected ? ["selected"] : [])], { side, thumb: index }));
+    });
+
+    group.appendChild(element("circle", { cx: 0, cy: 0, r: 0.8, class: "origin" }));
+    return group;
+  }
+
+  function round(value) { return Math.round(value * 10) / 10; }
+
+  function exportedLayout() {
+    const halves = Object.fromEntries(SIDES.map(side => {
+      const half = layout.halves[side];
+      const originOffset = half.columns[originIndex(half)].offsetMm;
+      return [side, {
+        tiltInwardDeg: round(half.tiltInwardDeg),
+        columns: half.columns.map(c => ({ name: c.name, offsetMm: round(c.offsetMm - originOffset) })),
+        thumbKeys: half.thumbKeys.map(t => ({ xMm: round(t.xMm), yMm: round(t.yMm - originOffset), rotationDeg: round(t.rotationDeg) })),
+      }];
+    }));
+    return {
+      format: FORMAT,
+      convention: CONVENTION,
+      spacingMm: layout.spacingMm,
+      gapBetweenHalvesMm: layout.gapBetweenHalvesMm,
+      rows: layout.rows,
+      homeRow: layout.homeRow,
+      originColumn: layout.originColumn,
+      halves,
+    };
+  }
+
+  function exportedText() { return JSON.stringify(exportedLayout(), null, 2) + "\n"; }
+
+  function renderCalibration() {
+    $("ppm").value = pxPerMm;
+    $("ppm-label").textContent = pxPerMm.toFixed(2) + " px/mm";
+    $("card").style.width = CARD_WIDTH_MM * pxPerMm + "px";
+    $("card").style.height = CARD_HEIGHT_MM * pxPerMm + "px";
+  }
+
+  function renderBoard() {
+    const radius = halfRadiusMm();
+    const width = 4 * radius + layout.gapBetweenHalvesMm;
+    const height = 2 * radius;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", width * pxPerMm);
+    svg.setAttribute("height", height * pxPerMm);
+    svg.innerHTML = "";
+    svg.appendChild(renderHalf("left", radius, radius));
+    svg.appendChild(renderHalf("right", width - radius, radius));
+  }
+
+  function renderControls() {
+    SIDES.forEach(side => {
+      $(`tilt-${side}`).value = layout.halves[side].tiltInwardDeg;
+      $(`tilt-${side}-label`).textContent = layout.halves[side].tiltInwardDeg.toFixed(1) + " deg";
+    });
+    $("tilt-linked").checked = ui.tiltLinked;
+    $("gap").value = layout.gapBetweenHalvesMm;
+    $("gap-label").textContent = layout.gapBetweenHalvesMm + " mm";
+    $("spacing").value = String(layout.spacingMm);
+    const thumb = layout.halves[ui.selected.side].thumbKeys[ui.selected.thumb];
+    $("thumb-rot").disabled = !thumb;
+    if (thumb) {
+      $("thumb-rot").value = thumb.rotationDeg;
+      $("thumb-rot-label").textContent = `${ui.selected.side} #${ui.selected.thumb + 1}: ${thumb.rotationDeg.toFixed(1)} deg`;
+    }
+    $("history-label").textContent = `${history.undo.length} undo / ${history.redo.length} redo`;
+  }
+
+  function render({ recordHistory = true } = {}) {
+    renderCalibration();
+    renderBoard();
+    renderControls();
+    if (document.activeElement !== $("json")) $("json").value = exportedText();
+    writeStorage(LAYOUT_STORAGE_KEY, layout);
+    if (recordHistory) scheduleCommit();
+  }
+
+  function localPoint(event, side) {
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    return point.matrixTransform($(`half-${side}`).getScreenCTM().inverse());
+  }
+
+  svg.addEventListener("pointerdown", event => {
+    const data = event.target.dataset || {};
+    if (!data.side) return;
+    const half = layout.halves[data.side];
+    const start = localPoint(event, data.side);
+    if (data.column !== undefined) {
+      const column = half.columns[Number(data.column)];
+      drag = { kind: "column", side: data.side, column, start, initial: column.offsetMm };
+    } else if (data.thumb !== undefined) {
+      ui.selected = { side: data.side, thumb: Number(data.thumb) };
+      drag = { kind: "thumb", side: data.side, start, initial: { ...half.thumbKeys[ui.selected.thumb] } };
+    } else {
+      return;
+    }
+    svg.setPointerCapture(event.pointerId);
+    render({ recordHistory: false });
+  });
+
+  svg.addEventListener("pointermove", event => {
+    if (!drag) return;
+    const now = localPoint(event, drag.side);
+    if (drag.kind === "column") {
+      drag.column.offsetMm = drag.initial + (now.y - drag.start.y);
+    } else {
+      const thumb = layout.halves[drag.side].thumbKeys[ui.selected.thumb];
+      thumb.xMm = drag.initial.xMm + (now.x - drag.start.x);
+      thumb.yMm = drag.initial.yMm + (now.y - drag.start.y);
+    }
+    render({ recordHistory: false });
+  });
+
+  ["pointerup", "pointercancel"].forEach(type => svg.addEventListener(type, () => {
+    if (!drag) return;
+    drag = null;
+    commitNow();
+  }));
+
+  svg.addEventListener("wheel", event => {
+    const data = event.target.dataset || {};
+    if (data.thumb === undefined) return;
+    event.preventDefault();
+    ui.selected = { side: data.side, thumb: Number(data.thumb) };
+    const visualDirection = data.side === "right" ? -1 : 1;
+    layout.halves[data.side].thumbKeys[ui.selected.thumb].rotationDeg += Math.sign(event.deltaY) * visualDirection;
+    render();
+  }, { passive: false });
+
+  document.addEventListener("keydown", event => {
+    if (!(event.ctrlKey || event.metaKey) || document.activeElement === $("json")) return;
+    const key = event.key.toLowerCase();
+    if (key === "z" && !event.shiftKey) { event.preventDefault(); restore(history.undo, history.redo); }
+    else if ((key === "z" && event.shiftKey) || key === "y") { event.preventDefault(); restore(history.redo, history.undo); }
+  });
+
+  function setTilt(side, value) {
+    layout.halves[side].tiltInwardDeg = value;
+    if (ui.tiltLinked) layout.halves[side === "left" ? "right" : "left"].tiltInwardDeg = value;
+    render();
+  }
+
+  function setPxPerMm(value) {
+    pxPerMm = value;
+    writeStorage(CALIBRATION_STORAGE_KEY, pxPerMm);
+    render({ recordHistory: false });
+  }
+
+  function showStatus(text, isError) {
+    $("io-status").textContent = text;
+    $("io-status").className = isError ? "error" : "muted";
+  }
+
+  function importText(text, sourceName) {
+    try {
+      replaceLayout(parseLayout(text));
+      showStatus(`Imported ${sourceName}.`, false);
+    } catch (e) {
+      showStatus(`Import failed: ${e.message}`, true);
+    }
+  }
+
+  $("ppm").addEventListener("input", e => setPxPerMm(Number(e.target.value)));
+  $("ppm-down").addEventListener("click", () => setPxPerMm(pxPerMm - 0.01));
+  $("ppm-up").addEventListener("click", () => setPxPerMm(pxPerMm + 0.01));
+  $("tilt-left").addEventListener("input", e => setTilt("left", Number(e.target.value)));
+  $("tilt-right").addEventListener("input", e => setTilt("right", Number(e.target.value)));
+  $("tilt-linked").addEventListener("change", e => { ui.tiltLinked = e.target.checked; renderControls(); });
+  $("gap").addEventListener("input", e => { layout.gapBetweenHalvesMm = Number(e.target.value); render(); });
+  $("spacing").addEventListener("change", e => { layout.spacingMm = Number(e.target.value); render(); });
+  $("thumb-rot").addEventListener("input", e => {
+    layout.halves[ui.selected.side].thumbKeys[ui.selected.thumb].rotationDeg = Number(e.target.value);
+    render();
+  });
+  $("undo").addEventListener("click", () => restore(history.undo, history.redo));
+  $("redo").addEventListener("click", () => restore(history.redo, history.undo));
+  $("reset").addEventListener("click", () => replaceLayout(defaultLayout()));
+
+  $("import-file").addEventListener("change", event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    file.text().then(text => importText(text, file.name));
+    event.target.value = "";
+  });
+  $("import-paste").addEventListener("click", () => importText($("json").value, "text box"));
+
+  $("export").addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([exportedText()], { type: "application/json" }));
+    const link = Object.assign(document.createElement("a"), { href: url, download: "layout.json" });
+    link.click();
+    URL.revokeObjectURL(url);
+    showStatus("Exported layout.json.", false);
+  });
+
+  $("copy").addEventListener("click", () => {
+    const text = exportedText();
+    const copied = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject();
+    copied
+      .then(() => showStatus("Copied.", false))
+      .catch(() => { $("json").value = text; $("json").select(); showStatus("Clipboard blocked: text selected, press Ctrl+C.", true); });
+  });
+
+  render({ recordHistory: false });
+})();
+</script>
+</body>
+</html>
