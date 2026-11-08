@@ -66,7 +66,8 @@
 		"datasheet": "https://datasheet.lcsc.com/datasheet/pdf/9e56b777c022540fcce7c7f67825f55e.pdf?productCode=C165948",
 		"jlcType": "Extended",
 		"stockSeen": "317984 on 2026-11-08",
-		"pins": 16
+		"pins": 16,
+		"heightMm": 3.3
 	},
 	"esd": {
 		"mpn": "USBLC6-2SC6",
@@ -116,7 +117,8 @@
 		"linearRangeMt": 88,
 		"respondsToPole": "both",
 		"sensitivityMvPerMt": 15,
-		"supplyCurrentMaxMa": 4
+		"supplyCurrentMaxMa": 4,
+		"heightMm": 1.1
 	},
 	"res_27r_0402": {
 		"mpn": "0402WGF270JTCE",
@@ -264,6 +266,7 @@
 		"datasheet": "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_XKB-Connection-TS-1187A-B-A-B_C318884.pdf",
 		"jlcType": "Basic",
 		"stockSeen": "870946 on 2026-11-08",
-		"value": "TS-1187A"
+		"value": "TS-1187A",
+		"heightMm": 1.5
 	}
 }

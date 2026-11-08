@@ -1,4 +1,5 @@
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -16,6 +17,9 @@ class KeyPosition:
     x_mm: float
     y_mm: float
     kicad_orientation_deg: float
+
+
+Point = tuple[float, float]
 
 
 @dataclass(frozen=True)
@@ -78,3 +82,22 @@ def _grid_kind(knob: dict | None, side: Side, row: str, column: str) -> Kind:
         and knob["column"] == column
     )
     return "knob" if is_knob else "key"
+
+
+def to_board(key: KeyPosition, local: Point) -> Point:
+    angle = math.radians(key.kicad_orientation_deg)
+    x, y = local
+    return (
+        key.x_mm + x * math.cos(angle) + y * math.sin(angle),
+        key.y_mm - x * math.sin(angle) + y * math.cos(angle),
+    )
+
+
+def to_local(key: KeyPosition, point: Point) -> Point:
+    angle = math.radians(key.kicad_orientation_deg)
+    dx = point[0] - key.x_mm
+    dy = point[1] - key.y_mm
+    return (
+        dx * math.cos(angle) - dy * math.sin(angle),
+        dx * math.sin(angle) + dy * math.cos(angle),
+    )

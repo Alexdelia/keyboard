@@ -1,8 +1,6 @@
-import math
-
 import pcbnew
 
-from kb.layout import KeyPosition
+from kb.layout import KeyPosition, to_board
 
 SWITCH_FOOTPRINT = "icarus:Gateron_KS33_Magnetic_Jade"
 SENSOR_FOOTPRINT = "Package_TO_SOT_SMD:SOT-23"
@@ -14,12 +12,7 @@ SENSOR_LAYER = pcbnew.B_Cu
 
 
 def sensor_position_mm(key: KeyPosition) -> tuple[float, float]:
-    angle = math.radians(key.kicad_orientation_deg)
-    offset_x, offset_y = SENSOR_OFFSET_MM
-    return (
-        key.x_mm + offset_x * math.cos(angle) + offset_y * math.sin(angle),
-        key.y_mm - offset_x * math.sin(angle) + offset_y * math.cos(angle),
-    )
+    return to_board(key, SENSOR_OFFSET_MM)
 
 
 def place_sensor(sensor: pcbnew.FOOTPRINT, key: KeyPosition) -> None:
