@@ -1,0 +1,80 @@
+{
+  "type": "fit-result",
+  "spacingMm": 19.05,
+  "pxPerMm": 3.22,
+  "origin": "middle finger home key center, y down, x toward thumb side",
+  "columnOrderOuterToInner": [
+    "pinkyOuter",
+    "pinky",
+    "ring",
+    "middle",
+    "index",
+    "indexInner"
+  ],
+  "left": {
+    "fitted": true,
+    "columnOffsetsMm": {
+      "pinkyOuter": 16.5,
+      "pinky": 16.5,
+      "ring": 7.2,
+      "middle": 0,
+      "index": 9.1,
+      "indexInner": 16.2
+    },
+    "thumbKeys": [
+      {
+        "xMm": -15.3,
+        "yMm": 53,
+        "rotationDeg": -7
+      },
+      {
+        "xMm": 5.8,
+        "yMm": 51.7,
+        "rotationDeg": 3
+      },
+      {
+        "xMm": 27.2,
+        "yMm": 56,
+        "rotationDeg": 19.5
+      },
+      {
+        "xMm": 46.2,
+        "yMm": 65.5,
+        "rotationDeg": 29
+      }
+    ]
+  },
+  "right": {
+    "fitted": false,
+    "columnOffsetsMm": {
+      "pinkyOuter": 9,
+      "pinky": 9,
+      "ring": 3,
+      "middle": 0,
+      "index": 3,
+      "indexInner": 5
+    },
+    "thumbKeys": [
+      {
+        "xMm": -11.6,
+        "yMm": 43.2,
+        "rotationDeg": -7
+      },
+      {
+        "xMm": 8.6,
+        "yMm": 42.9,
+        "rotationDeg": 5
+      },
+      {
+        "xMm": 28.6,
+        "yMm": 46.7,
+        "rotationDeg": 17
+      },
+      {
+        "xMm": 47.6,
+        "yMm": 54.3,
+        "rotationDeg": 29
+      }
+    ]
+  }
+}
