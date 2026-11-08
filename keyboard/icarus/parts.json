@@ -1,0 +1,116 @@
+{
+	"mcu": {
+		"mpn": "RP2040",
+		"manufacturer": "Raspberry Pi",
+		"lcsc": "C2040",
+		"package": "QFN-56 7x7mm",
+		"datasheet": "https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "87455 on 2026-11-08",
+		"supplyCurrentMaxMa": 80
+	},
+	"flash": {
+		"mpn": "W25Q16JVUXIQ",
+		"manufacturer": "Winbond",
+		"lcsc": "C2843335",
+		"package": "USON-8-EP 2x3mm",
+		"datasheet": "https://datasheet.lcsc.com/datasheet/pdf/d3c58607e6ba6e09270cabeea8f1c416.pdf?productCode=C2843335",
+		"jlcType": "Extended",
+		"stockSeen": "2635 on 2026-11-08",
+		"capacityMbit": 16,
+		"supplyCurrentMaxMa": 25
+	},
+	"crystal": {
+		"mpn": "ABM8-272-T3",
+		"manufacturer": "Abracon",
+		"lcsc": "C20625731",
+		"package": "SMD3225-4P",
+		"datasheet": "https://abracon.com/datasheets/ABM8-272-T3.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "9807 on 2026-11-08",
+		"frequencyMhz": 12,
+		"loadCapacitancePf": 10,
+		"esrMaxOhm": 50
+	},
+	"mux": {
+		"mpn": "74HC4067PW,118",
+		"manufacturer": "Nexperia",
+		"lcsc": "C179326",
+		"package": "TSSOP-24",
+		"datasheet": "https://assets.nexperia.com/documents/data-sheet/74HC_HCT4067.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "24296 on 2026-11-08",
+		"channels": 16,
+		"supplyCurrentMaxMa": 0.16
+	},
+	"ldo": {
+		"mpn": "TLV75733PDYDR",
+		"manufacturer": "Texas Instruments",
+		"lcsc": "C22399950",
+		"package": "SOT-23-5 (DYD, thermally enhanced)",
+		"datasheet": "https://www.ti.com/lit/ds/symlink/tlv757p.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "13667 on 2026-11-08",
+		"outputVoltage": 3.3,
+		"outputCurrentMaxMa": 1000,
+		"dropoutMaxMv": 500,
+		"quiescentCurrentMaxMa": 0.04
+	},
+	"usbc": {
+		"mpn": "TYPE-C-31-M-12",
+		"manufacturer": "Korean Hroparts",
+		"lcsc": "C165948",
+		"package": "USB-C receptacle 16P SMD right angle",
+		"datasheet": "https://datasheet.lcsc.com/datasheet/pdf/9e56b777c022540fcce7c7f67825f55e.pdf?productCode=C165948",
+		"jlcType": "Extended",
+		"stockSeen": "317984 on 2026-11-08",
+		"pins": 16
+	},
+	"esd": {
+		"mpn": "USBLC6-2SC6",
+		"manufacturer": "STMicroelectronics",
+		"lcsc": "C7519",
+		"package": "SOT-23-6",
+		"datasheet": "https://datasheet.lcsc.com/datasheet/pdf/0d3a2ab954b34651a0695e7ccf534db0.pdf?productCode=C7519",
+		"jlcType": "Extended",
+		"stockSeen": "23494 on 2026-11-08"
+	},
+	"fuse": {
+		"mpn": "MF-NSMF050-2",
+		"manufacturer": "Bourns",
+		"lcsc": "C75464",
+		"package": "1206",
+		"datasheet": "https://www.bourns.com/docs/Product-Datasheets/mfnsmf.pdf",
+		"jlcType": "Extended",
+		"stockSeen": "66314 on 2026-11-08",
+		"holdCurrentMa": 500,
+		"tripCurrentMa": 1000
+	},
+	"encoder": {
+		"mpn": "EC11N1525404",
+		"manufacturer": "Alps Alpine",
+		"lcsc": "C470748",
+		"package": "EC11 through-hole vertical",
+		"datasheet": "https://tech.alpsalpine.com/e/products/detail/EC11N1525404/",
+		"jlcType": "Extended",
+		"stockSeen": "327 on 2026-11-08",
+		"shaftLengthMm": 15,
+		"pushSwitch": true,
+		"detents": 30,
+		"pulsesPerRevolution": 15
+	},
+	"sensor": {
+		"mpn": "DRV5055A3QDBZR",
+		"manufacturer": "Texas Instruments",
+		"lcsc": "C266128",
+		"package": "SOT-23",
+		"datasheet": "https://www.ti.com/lit/ds/symlink/drv5055.pdf",
+		"datasheetRevision": "SBAS640C (June 2026)",
+		"jlcType": "Extended",
+		"stockSeen": "1818 on 2026-11-08",
+		"linearRangeMt": 88,
+		"respondsToPole": "both",
+		"sensitivityMvPerMt": 15,
+		"supplyCurrentMaxMa": 4
+	}
+}
