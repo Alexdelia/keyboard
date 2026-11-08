@@ -1,0 +1,4 @@
+{
+	"layout": "layout.json",
+	"knob": { "side": "left", "row": "number", "column": "pinkyOuter" }
+}
