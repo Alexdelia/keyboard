@@ -2,7 +2,14 @@ import json
 import sys
 from pathlib import Path
 
-from kb.footprint import ENCODER_FOOTPRINT, SENSOR_FOOTPRINT
+from kb.footprint import (
+	ENCODER_FOOTPRINT,
+	MOUNTING_HOLE_FOOTPRINT,
+	PROJECT_LIBRARY,
+	PROJECT_LIBRARY_RELATIVE,
+	SENSOR_FOOTPRINT,
+	SWITCH_FOOTPRINT,
+)
 from kb.layout import Side, half_positions, load_board
 from kb.parts import load_parts
 from kb.sexpr import Sym, dump
@@ -18,7 +25,9 @@ MUX_COUNT = 2
 MUX_CHANNELS = 16
 PROJECT_FORMAT_VERSION = 3
 LIBRARY_TABLE_VERSION = 7
-LOCAL_FOOTPRINT_LIBRARIES = {"icarus": "${KIPRJMOD}/../lib/icarus.pretty"}
+LOCAL_FOOTPRINT_LIBRARIES = {
+	PROJECT_LIBRARY: f"${{KIPRJMOD}}/../{PROJECT_LIBRARY_RELATIVE.relative_to('pcb')}"
+}
 
 SYMBOLS = {
 	"mcu": "MCU_RaspberryPi:RP2040",
@@ -55,6 +64,7 @@ FOOTPRINTS = {
 TEST_POINT_SYMBOL = "Connector:TestPoint"
 TEST_POINT_FOOTPRINT = "TestPoint:TestPoint_Pad_D1.0mm"
 POWER_FLAG_SYMBOL = "power:PWR_FLAG"
+BOARD_ONLY_FOOTPRINTS = (SWITCH_FOOTPRINT, MOUNTING_HOLE_FOOTPRINT)
 
 MUX_SELECT_GPIOS = [2, 3, 4, 5]
 ADC_GPIOS = [26, 27]
@@ -433,10 +443,12 @@ def symbol_libraries(writers: list[SheetWriter]) -> dict[str, str]:
 
 def footprint_libraries(sheets: list[Sheet]) -> dict[str, str]:
 	names = {
-		part.footprint.split(":")[0]
-		for sheet in sheets
-		for part in sheet.parts
-		if part.footprint
+		footprint.split(":")[0]
+		for footprint in (
+			*BOARD_ONLY_FOOTPRINTS,
+			*(part.footprint for sheet in sheets for part in sheet.parts),
+		)
+		if footprint
 	}
 	return {
 		name: LOCAL_FOOTPRINT_LIBRARIES.get(
