@@ -1,18 +1,11 @@
 {
-  "type": "fit-result",
+  "type": "fit-compare",
   "spacingMm": 19.05,
-  "pxPerMm": 3.22,
-  "origin": "middle finger home key center, y down, x toward thumb side",
-  "columnOrderOuterToInner": [
-    "pinkyOuter",
-    "pinky",
-    "ring",
-    "middle",
-    "index",
-    "indexInner"
-  ],
+  "gapBetweenHalvesMm": 250,
+  "convention": "per half, left-hand frame: origin middle finger home key, y down, x toward thumb side, before tilt",
   "left": {
-    "fitted": true,
+    "source": "flat.json",
+    "tiltInwardDeg": 15.5,
     "columnOffsetsMm": {
       "pinkyOuter": 33.2,
       "pinky": 26.7,
@@ -45,34 +38,35 @@
     ]
   },
   "right": {
-    "fitted": false,
+    "source": "offset.json (left hand, mirrored)",
+    "tiltInwardDeg": 15.5,
     "columnOffsetsMm": {
-      "pinkyOuter": 9,
-      "pinky": 9,
-      "ring": 3,
+      "pinkyOuter": 16.5,
+      "pinky": 16.5,
+      "ring": 7.2,
       "middle": 0,
-      "index": 3,
-      "indexInner": 5
+      "index": 9.1,
+      "indexInner": 16.2
     },
     "thumbKeys": [
       {
-        "xMm": -11.6,
-        "yMm": 43.2,
-        "rotationDeg": -7
+        "xMm": -15.2,
+        "yMm": 51.5,
+        "rotationDeg": -10.5
       },
       {
-        "xMm": 8.6,
-        "yMm": 42.9,
-        "rotationDeg": 5
+        "xMm": 5.8,
+        "yMm": 49.8,
+        "rotationDeg": 3
       },
       {
-        "xMm": 28.6,
-        "yMm": 46.7,
-        "rotationDeg": 17
+        "xMm": 26.7,
+        "yMm": 54.2,
+        "rotationDeg": 19.5
       },
       {
-        "xMm": 47.6,
-        "yMm": 54.3,
+        "xMm": 45.6,
+        "yMm": 63.3,
         "rotationDeg": 29
       }
     ]
