@@ -1,0 +1,137 @@
+(footprint "Gateron_KS33_Magnetic_Jade"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Gateron KS-33 low profile Magnetic Jade switch KS-33CF10B030NW-D272, origin at stem center, sensor at +y (Hall sensor on B.Cu under magnet, separate footprint), LED window at -y; switch fits reversed, check LED side")
+	(tags "Gateron KS-33 low profile magnetic Hall effect keyswitch")
+	(property "Reference" "REF**"
+		(at 0 -3.8 0)
+		(layer "F.Fab")
+		(uuid "e19efeef-4ec9-46f7-88b9-b0a27d1214d6")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Value" "Gateron_KS33_Magnetic_Jade"
+		(at 0 6.2 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "be8bcd7a-f80a-4070-823a-a481728e09bf")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Datasheet" "GATERON SPEC-KS-33C-003, KS-33CF10B030NW-D272, 2024-08-08"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3cf1e927-311c-4a7a-b48c-1f419ac07560")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" "Gateron low profile Magnetic Jade keyswitch, plate 14.00 cutout, PCB holes only"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "c2a0ee8a-d3f0-4755-9720-a30767cdf3dd")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_rect
+		(start -7.3 -7.3)
+		(end 7.3 7.3)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "91185637-77c8-477f-ae50-ec6afe8fdebb")
+	)
+	(fp_rect
+		(start -7 -7)
+		(end 7 7)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "f2522afe-e309-4064-a619-b10979bab9b0")
+	)
+	(fp_text user "SENSOR"
+		(at 0 4.3 0)
+		(layer "B.Fab")
+		(uuid "f1594b2e-c7b5-4dcc-a803-61518d3baa4f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+			(justify mirror)
+		)
+	)
+	(fp_text user "LED"
+		(at 0 -5.8 0)
+		(layer "F.Fab")
+		(uuid "7083e3b1-b6bb-402c-b430-573fe1c56f9d")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(fp_text user "SENSOR"
+		(at 0 4.3 0)
+		(layer "F.Fab")
+		(uuid "24ac6d91-3f99-46f8-b62a-b0f574972089")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(pad "" np_thru_hole circle
+		(at -5.075 0)
+		(size 1.7 1.7)
+		(drill 1.7)
+		(layers "*.Cu" "*.Mask")
+		(uuid "804a0e77-9bf0-46e4-837a-af052ce026ef")
+	)
+	(pad "" np_thru_hole circle
+		(at 0 0)
+		(size 5.2 5.2)
+		(drill 5.2)
+		(layers "*.Cu" "*.Mask")
+		(uuid "fdf32a0b-8203-4c77-9558-b866c9b6361e")
+	)
+	(pad "" np_thru_hole circle
+		(at 5.075 0)
+		(size 1.7 1.7)
+		(drill 1.7)
+		(layers "*.Cu" "*.Mask")
+		(uuid "2f6f7b21-aae5-4734-be7b-7cdd5dfc62c5")
+	)
+	(embedded_fonts no)
+)

@@ -51,5 +51,6 @@ in
       pkgs.freerouting
     ];
     PYTHONPATH = pcbnewSitePackages;
+    KICAD10_FOOTPRINT_DIR = "${pkgs.kicad.libraries.footprints}/share/kicad/footprints";
   };
 }
