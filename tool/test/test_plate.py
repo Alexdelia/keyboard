@@ -7,6 +7,7 @@ from kb.layout import Board, KeyPosition, Side, half_positions, load_board
 from kb.outline import (
 	ENCODER_FOOTPRINT_FILE,
 	ENCODER_SHAFT_LOCAL_MM,
+	HOLE_DIAMETER_MM,
 	Point,
 	board_outline,
 	encoder_opening_local,
@@ -14,6 +15,7 @@ from kb.outline import (
 	mounting_holes,
 )
 from kb.parts import load_parts
+from kb.placement import board_holes, button_holes
 from kb.plate import (
 	BOTTOM_STANDOFF_HEIGHT_MM,
 	STANDOFF_HEIGHT_MM,
@@ -240,3 +242,32 @@ def test_committed_svgs_match_generator(tmp_path: Path) -> None:
 	for generated in tmp_path.iterdir():
 		committed = BOARD_DIR / "plate" / generated.name
 		assert committed.read_bytes() == generated.read_bytes()
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_committed_bottom_has_button_access_holes(side: Side) -> None:
+	circles = parse(BOARD_DIR / "plate" / f"{side}-bottom.svg").findall(
+		f".//{SVG}circle"
+	)
+	found = sorted(
+		(number(c, "cx"), number(c, "cy"), 2 * number(c, "r"))
+		for c in circles
+		if number(c, "r") != pytest.approx(HOLE_DIAMETER_MM / 2)
+	)
+	expected = button_holes(BOARD_DIR, side)
+	assert len(expected) == 2
+	assert found == pytest.approx(sorted(expected), abs=1e-4)
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_committed_plate_holes_follow_placement(side: Side) -> None:
+	for kind in ("plate", "bottom"):
+		circles = parse(BOARD_DIR / "plate" / f"{side}-{kind}.svg").findall(
+			f".//{SVG}circle"
+		)
+		found = sorted(
+			(number(c, "cx"), number(c, "cy"))
+			for c in circles
+			if number(c, "r") == pytest.approx(HOLE_DIAMETER_MM / 2)
+		)
+		assert found == pytest.approx(sorted(board_holes(BOARD_DIR)[side]), abs=1e-4)

@@ -7,6 +7,7 @@ from kb.outline import (
 	CUTOUT_MM,
 	HEAD_DIAMETER_MM,
 	HOLE_DIAMETER_MM,
+	HOLE_PART_CLEARANCE_MM,
 	HOLE_WEB_MM,
 	Point,
 	board_outline,
@@ -18,6 +19,7 @@ from kb.outline import (
 	mirror_holes,
 	mounting_holes,
 	point_in_polygon,
+	polygon_distance_mm,
 )
 
 MIN_HOLE_CLEARANCE_MM = HOLE_DIAMETER_MM / 2 + HOLE_WEB_MM
@@ -150,3 +152,23 @@ def test_knob_cutout_uses_encoder_courtyard() -> None:
 	assert (x0, y0, x1, y1) == pytest.approx((-8.75, -8.15, 8.25, 8.15))
 	assert cutout_distance_mm((x1 + 3, 0), knob) == pytest.approx(3)
 	assert cutout_distance_mm((0, y1 + 3), knob) == pytest.approx(3)
+
+
+def test_keepouts_push_holes_away(
+	halves: dict[Side, list[KeyPosition]],
+	outlines: dict[Side, list[Point]],
+	left_holes: list[Point],
+) -> None:
+	x, y = left_holes[0]
+	keepout = [(x - 1, y - 1), (x + 1, y - 1), (x + 1, y + 1), (x - 1, y + 1)]
+	moved = mounting_holes(halves["left"], outlines["left"], keepouts=[keepout])
+	assert len(moved) == len(left_holes)
+	assert all(
+		polygon_distance_mm(hole, keepout) >= HOLE_PART_CLEARANCE_MM for hole in moved
+	)
+
+
+def test_polygon_distance_known_points() -> None:
+	square = [(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (0.0, 2.0)]
+	assert polygon_distance_mm((1.0, 1.0), square) == 0
+	assert polygon_distance_mm((5.0, 1.0), square) == pytest.approx(3)

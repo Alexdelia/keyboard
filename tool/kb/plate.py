@@ -4,15 +4,9 @@ from pathlib import Path
 from typing import Literal
 
 from kb.layout import KeyPosition, Side, half_positions, load_board
-from kb.outline import (
-	HOLE_DIAMETER_MM,
-	Point,
-	board_outline,
-	cutout_rect_local,
-	mirror_holes,
-	mounting_holes,
-)
+from kb.outline import HOLE_DIAMETER_MM, Point, board_outline, cutout_rect_local
 from kb.parts import load_parts
+from kb.placement import board_holes, button_holes
 
 PlateKind = Literal["plate", "bottom"]
 
@@ -100,15 +94,19 @@ def generate(board_dir: Path, out_dir: Path) -> None:
 	board = load_board(board_dir)
 	spacing = board.layout["spacingMm"]
 	out_dir.mkdir(parents=True, exist_ok=True)
-	left = half_positions(board, "left")
-	left_holes = mounting_holes(left, board_outline(left, spacing_mm=spacing), spacing)
-	holes = {"left": left_holes, "right": mirror_holes(left_holes)}
+	holes = board_holes(board_dir)
 	for side in SIDES:
 		positions = half_positions(board, side)
 		outline = board_outline(positions, spacing_mm=spacing)
+		buttons = button_holes(board_dir, side)
 		for kind in ("plate", "bottom"):
 			write_plate_svg(
-				out_dir / f"{side}-{kind}.svg", positions, outline, holes[side], kind
+				out_dir / f"{side}-{kind}.svg",
+				positions,
+				outline,
+				holes[side],
+				kind,
+				buttons,
 			)
 
 

@@ -9,6 +9,7 @@ from kb.footprint import (
 	PROJECT_LIBRARY_RELATIVE,
 	SENSOR_FOOTPRINT,
 	SWITCH_FOOTPRINT,
+	USB_FOOTPRINT,
 )
 from kb.layout import Side, half_positions, load_board
 from kb.parts import load_parts
@@ -24,6 +25,27 @@ ROOT_POWER_REF_OFFSET = 500
 MUX_COUNT = 2
 MUX_CHANNELS = 16
 PROJECT_FORMAT_VERSION = 3
+NET_SETTINGS_VERSION = 5
+DESIGN_RULES_MM = {
+	"min_clearance": 0.127,
+	"min_copper_edge_clearance": 0.3,
+	"min_hole_to_hole": 0.5,
+	"min_through_hole_diameter": 0.3,
+	"min_track_width": 0.127,
+	"min_via_annular_width": 0.15,
+	"min_via_diameter": 0.6,
+}
+NETCLASS_CLEARANCE_MM = 0.15
+VIA_DIAMETER_MM = 0.6
+VIA_DRILL_MM = 0.3
+DEFAULT_TRACK_MM = 0.2
+POWER_TRACK_MM = 0.4
+USB_PAIR_WIDTH_MM = 0.2
+USB_PAIR_GAP_MM = 0.2
+NETCLASS_NETS = {
+	"Power": ("+5V", "+3V3", "GND", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS"),
+	"USB": ("USB_DP", "USB_DM", "USB_DP_CONN", "USB_DM_CONN"),
+}
 LIBRARY_TABLE_VERSION = 7
 LOCAL_FOOTPRINT_LIBRARIES = {
 	PROJECT_LIBRARY: f"${{KIPRJMOD}}/../{PROJECT_LIBRARY_RELATIVE.relative_to('pcb')}"
@@ -51,7 +73,7 @@ FOOTPRINTS = {
 	"crystal": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
 	"mux": "Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm",
 	"ldo": "Package_TO_SOT_SMD:SOT-23-5",
-	"usbc": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+	"usbc": USB_FOOTPRINT,
 	"esd": "Package_TO_SOT_SMD:SOT-23-6",
 	"fuse": "Fuse:Fuse_1206_3216Metric",
 	"encoder": ENCODER_FOOTPRINT,
@@ -85,6 +107,14 @@ GPIO: dict[str, int | list[int] | dict[str, int]] = {
 ENCODER_NETS = {"a": "ENC_A", "b": "ENC_B", "push": "ENC_SW"}
 ENCODER_FILTERED_NETS = ("ENC_A", "ENC_B")
 STRAP_RAIL = {"left": "GND", "right": "+3V3"}
+SENSOR_REF_BASE = 101
+ENCODER_REF_BASE = 101
+ENCODER_PULLUP_REFS = {
+	net: f"R{102 + offset}" for offset, net in enumerate(ENCODER_NETS.values())
+}
+ENCODER_FILTER_REFS = {
+	net: f"C{201 + offset}" for offset, net in enumerate(ENCODER_FILTERED_NETS)
+}
 
 
 def mux_net(mux: int, channel: int) -> str:
@@ -335,27 +365,32 @@ def knob_ids(side: Side) -> list[str]:
 	return [p.id for p in half_positions(board, side) if p.kind == "knob"]
 
 
+def sensor_decoupling_refs(side: Side) -> dict[str, str]:
+	return {
+		f"U{SENSOR_REF_BASE + index}": f"C{SENSOR_REF_BASE + index}"
+		for index in range(len(channel_map(side)))
+	}
+
+
 def root_sheet(catalog: Catalog, side: Side) -> Sheet:
 	c = catalog
 	mapping = channel_map(side)
 	parts = []
-	for index, (key, slot) in enumerate(mapping.items()):
+	decoupling = sensor_decoupling_refs(side)
+	for (key, slot), (sensor, cap) in zip(
+		mapping.items(), decoupling.items(), strict=True
+	):
 		output = mux_net(slot["mux"], slot["channel"])
 		parts.append(
-			c.part(
-				"sensor",
-				f"U{101 + index}",
-				{"1": "+3V3", "2": output, "3": "GND"},
-				KEY=key,
-			)
+			c.part("sensor", sensor, {"1": "+3V3", "2": output, "3": "GND"}, KEY=key)
 		)
-		parts.append(c.two_pin("cap_100n_0402", f"C{101 + index}", "+3V3", "GND"))
+		parts.append(c.two_pin("cap_100n_0402", cap, "+3V3", "GND"))
 	parts.append(c.two_pin("res_10k_0402", "R101", "HAND", STRAP_RAIL[side]))
 	for offset, key in enumerate(knob_ids(side)):
 		parts.append(
 			c.part(
 				"encoder",
-				f"SW{101 + offset}",
+				f"SW{ENCODER_REF_BASE + offset}",
 				{
 					"A": "ENC_A",
 					"B": "ENC_B",
@@ -369,10 +404,10 @@ def root_sheet(catalog: Catalog, side: Side) -> Sheet:
 		)
 	has_encoder = bool(knob_ids(side))
 	if has_encoder:
-		for offset, net in enumerate(ENCODER_NETS.values()):
-			parts.append(c.two_pin("res_10k_0402", f"R{102 + offset}", "+3V3", net))
-		for offset, net in enumerate(ENCODER_FILTERED_NETS):
-			parts.append(c.two_pin("cap_10n_0402", f"C{201 + offset}", net, "GND"))
+		for net, ref in ENCODER_PULLUP_REFS.items():
+			parts.append(c.two_pin("res_10k_0402", ref, "+3V3", net))
+		for net, ref in ENCODER_FILTER_REFS.items():
+			parts.append(c.two_pin("cap_10n_0402", ref, net, "GND"))
 	used = {mux_net(s["mux"], s["channel"]) for s in mapping.values()}
 	connections: dict[str, str | None] = {}
 	for port in core_ports():
@@ -390,6 +425,16 @@ def root_sheet(catalog: Catalog, side: Side) -> Sheet:
 	)
 
 
+def footprints_by_ref(side: Side) -> dict[str, str]:
+	catalog = Catalog(load_parts(BOARD_DIR))
+	return {
+		part.ref: part.footprint
+		for sheet in (core_sheet(catalog), root_sheet(catalog, side))
+		for part in sheet.parts
+		if part.footprint
+	}
+
+
 def root_uuid(side: Side) -> str:
 	return stable_uuid(side, "root")
 
@@ -398,9 +443,59 @@ def core_sheet_uuid(side: Side) -> str:
 	return stable_uuid(side, "sheet", CORE_NAME)
 
 
+def netclass(name: str, track_width: float, pair_width: float) -> dict:
+	return {
+		"clearance": NETCLASS_CLEARANCE_MM,
+		"diff_pair_gap": USB_PAIR_GAP_MM,
+		"diff_pair_via_gap": USB_PAIR_GAP_MM,
+		"diff_pair_width": pair_width,
+		"name": name,
+		"track_width": track_width,
+		"via_diameter": VIA_DIAMETER_MM,
+		"via_drill": VIA_DRILL_MM,
+	}
+
+
+def design_settings() -> dict:
+	return {
+		"diff_pair_dimensions": [
+			{"gap": 0.0, "via_gap": 0.0, "width": 0.0},
+			{
+				"gap": USB_PAIR_GAP_MM,
+				"via_gap": USB_PAIR_GAP_MM,
+				"width": USB_PAIR_WIDTH_MM,
+			},
+		],
+		"rules": DESIGN_RULES_MM,
+		"track_widths": [0.0, DEFAULT_TRACK_MM, POWER_TRACK_MM],
+		"via_dimensions": [
+			{"diameter": 0.0, "drill": 0.0},
+			{"diameter": VIA_DIAMETER_MM, "drill": VIA_DRILL_MM},
+		],
+	}
+
+
+def net_settings() -> dict:
+	return {
+		"classes": [
+			netclass("Default", DEFAULT_TRACK_MM, DEFAULT_TRACK_MM),
+			netclass("Power", POWER_TRACK_MM, DEFAULT_TRACK_MM),
+			netclass("USB", USB_PAIR_WIDTH_MM, USB_PAIR_WIDTH_MM),
+		],
+		"meta": {"version": NET_SETTINGS_VERSION},
+		"netclass_patterns": [
+			{"netclass": name, "pattern": f"*{net}"}
+			for name, nets in NETCLASS_NETS.items()
+			for net in nets
+		],
+	}
+
+
 def project_file(side: Side) -> str:
 	project = {
-		"meta": {"filename": f"{side}.kicad_pro", "version": PROJECT_FORMAT_VERSION}
+		"board": {"design_settings": design_settings()},
+		"meta": {"filename": f"{side}.kicad_pro", "version": PROJECT_FORMAT_VERSION},
+		"net_settings": net_settings(),
 	}
 	return json.dumps(project, indent=2) + "\n"
 

@@ -2,7 +2,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 
 Side = Literal["left", "right"]
 Kind = Literal["key", "thumb", "knob"]
@@ -20,6 +20,17 @@ class KeyPosition:
 
 
 Point = tuple[float, float]
+
+
+class Located(Protocol):
+	@property
+	def x_mm(self) -> float: ...
+
+	@property
+	def y_mm(self) -> float: ...
+
+	@property
+	def kicad_orientation_deg(self) -> float: ...
 
 
 @dataclass(frozen=True)
@@ -84,7 +95,7 @@ def _grid_kind(knob: dict | None, side: Side, row: str, column: str) -> Kind:
 	return "knob" if is_knob else "key"
 
 
-def to_board(key: KeyPosition, local: Point) -> Point:
+def to_board(key: Located, local: Point) -> Point:
 	angle = math.radians(key.kicad_orientation_deg)
 	x, y = local
 	return (
@@ -93,7 +104,7 @@ def to_board(key: KeyPosition, local: Point) -> Point:
 	)
 
 
-def to_local(key: KeyPosition, point: Point) -> Point:
+def to_local(key: Located, point: Point) -> Point:
 	angle = math.radians(key.kicad_orientation_deg)
 	dx = point[0] - key.x_mm
 	dy = point[1] - key.y_mm

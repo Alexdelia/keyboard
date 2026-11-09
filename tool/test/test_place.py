@@ -2,6 +2,7 @@ import json
 import math
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pcbnew
@@ -13,18 +14,19 @@ from kb.footprint import (
 	SENSOR_OFFSET_MM,
 	SENSOR_ORIENTATION_DEG,
 	SWITCH_FOOTPRINT,
+	USB_FOOTPRINT,
 	sensor_position_mm,
 )
 from kb.layout import KeyPosition, Side, half_positions, load_board, to_board
 from kb.outline import (
+	HOLE_PART_CLEARANCE_MM,
 	board_outline,
-	mirror_holes,
-	mounting_holes,
+	distance_to_outline_edge_mm,
+	point_in_polygon,
 )
 from kb.place import (
 	BOARD_ORIGIN_MM,
 	BOARD_THICKNESS_MM,
-	PARKING_MARGIN_MM,
 	SIDES,
 	Netlist,
 	assert_unique_uuids,
@@ -33,7 +35,19 @@ from kb.place import (
 	normalize,
 	place_half,
 )
-from kb.schematic import core_sheet_uuid
+from kb.placement import (
+	PLACEMENT_FILE,
+	board_holes,
+	load_placement,
+	part_poses,
+)
+from kb.schematic import (
+	ENCODER_FILTER_REFS,
+	ENCODER_PULLUP_REFS,
+	FOOTPRINTS,
+	core_sheet_uuid,
+	sensor_decoupling_refs,
+)
 from kb.sexpr import dump, parse
 from kb.sheet import stable_uuid
 
@@ -42,6 +56,14 @@ TOLERANCE_MM = 1e-4
 EXPECTED_SWITCHES: dict[Side, int] = {"left": 27, "right": 28}
 HOLE_DRILL_MM = 2.2
 EDGE_STROKE_MM = 0.05
+EDGE_CLEARANCE_MM = 0.3
+IC_ROLES = ("mcu", "flash", "crystal", "ldo", "mux", "usbc", "esd")
+IC_SENSOR_CLEARANCE_MM = 5.0
+NPTH_CLEARANCE_MM = 0.5
+SENSOR_CAP_MAX_DISTANCE_MM = 2.0
+CRYSTAL_MAX_DISTANCE_MM = 4.0
+ENCODER_SATELLITE_MAX_DISTANCE_MM = 3.5
+SVG = "{http://www.w3.org/2000/svg}"
 
 
 @pytest.fixture(scope="module")
@@ -296,11 +318,7 @@ def test_thickness(board: pcbnew.BOARD) -> None:
 
 
 def test_mounting_holes(board: pcbnew.BOARD, side: Side) -> None:
-	layout_board = load_board(BOARD_DIR)
-	spacing = layout_board.layout["spacingMm"]
-	left = half_positions(layout_board, "left")
-	left_holes = mounting_holes(left, board_outline(left, spacing_mm=spacing), spacing)
-	expected = left_holes if side == "left" else mirror_holes(left_holes)
+	expected = board_holes(BOARD_DIR)[side]
 	holes = with_id(board, MOUNTING_HOLE_FOOTPRINT)
 	assert len(holes) == len(expected)
 	for hole in holes:
@@ -331,22 +349,193 @@ def test_edge_cuts_closed(board: pcbnew.BOARD, positions: list[KeyPosition]) -> 
 		assert any(math.dist(point, vertex) < EDGE_STROKE_MM for vertex in vertices)
 
 
-def test_parked_outside_outline(
+def parts(board: pcbnew.BOARD) -> list[pcbnew.FOOTPRINT]:
+	return [
+		fp
+		for fp in board.GetFootprints()
+		if not fp.GetAttributes() & pcbnew.FP_BOARD_ONLY
+	]
+
+
+def courtyard(footprint: pcbnew.FOOTPRINT) -> pcbnew.SHAPE_POLY_SET:
+	layer = pcbnew.B_CrtYd if footprint.GetLayer() == pcbnew.B_Cu else pcbnew.F_CrtYd
+	return footprint.GetCourtyard(layer)
+
+
+def polygon_points(polygon: pcbnew.SHAPE_POLY_SET) -> list[tuple[float, float]]:
+	outline = polygon.Outline(0)
+	return [mm_point(outline.CPoint(i)) for i in range(outline.PointCount())]
+
+
+def inside_with_clearance(point: tuple[float, float], outline: list) -> bool:
+	return (
+		point_in_polygon(point, outline)
+		and distance_to_outline_edge_mm(point, outline) >= EDGE_CLEARANCE_MM
+	)
+
+
+def test_parts_inside_outline(
 	board: pcbnew.BOARD, positions: list[KeyPosition]
 ) -> None:
 	spacing = load_board(BOARD_DIR).layout["spacingMm"]
-	bottom = max(y for _, y in board_outline(positions, spacing_mm=spacing))
-	parked = [
-		fp
-		for fp in board.GetFootprints()
-		if fp.GetFPIDAsString()
-		not in (SWITCH_FOOTPRINT, ENCODER_FOOTPRINT, SENSOR_FOOTPRINT)
-		and not fp.GetAttributes() & pcbnew.FP_BOARD_ONLY
+	outline = board_outline(positions, spacing_mm=spacing)
+	for footprint in parts(board):
+		if footprint.GetFPIDAsString() == USB_FOOTPRINT:
+			points = [mm_point(pad.GetPosition()) for pad in footprint.Pads()]
+		else:
+			points = polygon_points(courtyard(footprint))
+		assert all(inside_with_clearance(p, outline) for p in points), (
+			footprint.GetReference()
+		)
+
+
+def usb_edge_line(footprint: pcbnew.FOOTPRINT) -> list[tuple[float, float]]:
+	(line,) = [
+		item
+		for item in footprint.GraphicalItems()
+		if item.GetLayer() == pcbnew.Dwgs_User
 	]
-	assert parked
-	for footprint in parked:
-		top = pcbnew.ToMM(footprint.GetBoundingBox(True).GetY()) - BOARD_ORIGIN_MM[1]
-		assert top >= bottom + PARKING_MARGIN_MM - 1.0
+	return [mm_point(line.GetStart()), mm_point(line.GetEnd())]
+
+
+def test_usb_mouth_on_board_edge(
+	board: pcbnew.BOARD, positions: list[KeyPosition]
+) -> None:
+	spacing = load_board(BOARD_DIR).layout["spacingMm"]
+	outline = board_outline(positions, spacing_mm=spacing)
+	connectors = with_id(board, USB_FOOTPRINT)
+	assert len(connectors) == 2
+	for connector in connectors:
+		for point in usb_edge_line(connector):
+			assert distance_to_outline_edge_mm(point, outline) < TOLERANCE_MM * 100
+
+
+def sensor_centers(board: pcbnew.BOARD) -> list[pcbnew.VECTOR2I]:
+	return [
+		fp.GetPosition()
+		for fp in with_id(board, SENSOR_FOOTPRINT)
+		if fp.GetFieldText("KEY")
+	]
+
+
+def test_ics_clear_of_sensors(board: pcbnew.BOARD) -> None:
+	ic_footprints = {FOOTPRINTS[role] for role in IC_ROLES}
+	ics = [fp for fp in parts(board) if fp.GetFPIDAsString() in ic_footprints]
+	assert len(ics) == 10
+	for ic in ics:
+		for center in sensor_centers(board):
+			assert not courtyard(ic).Collide(
+				center, pcbnew.FromMM(IC_SENSOR_CLEARANCE_MM)
+			), ic.GetReference()
+
+
+def switch_holes(board: pcbnew.BOARD) -> list[pcbnew.PAD]:
+	return [pad for switch in with_id(board, SWITCH_FOOTPRINT) for pad in switch.Pads()]
+
+
+def test_parts_clear_of_switch_holes(board: pcbnew.BOARD) -> None:
+	holes = switch_holes(board)
+	assert holes
+	for footprint in parts(board):
+		if footprint.GetFPIDAsString() == SENSOR_FOOTPRINT:
+			continue
+		for hole in holes:
+			radius = pcbnew.ToMM(hole.GetDrillSize().x) / 2 + NPTH_CLEARANCE_MM
+			assert not courtyard(footprint).Collide(
+				hole.GetPosition(), pcbnew.FromMM(radius)
+			), footprint.GetReference()
+
+
+def pad_mm(footprint: pcbnew.FOOTPRINT, net_suffix: str) -> tuple[float, float]:
+	(pad,) = [p for p in footprint.Pads() if p.GetNetname().endswith(net_suffix)]
+	return mm_point(pad.GetPosition())
+
+
+def test_sensor_caps_next_to_vcc(board: pcbnew.BOARD, side: Side) -> None:
+	footprints = by_ref(board)
+	for sensor, cap in sensor_decoupling_refs(side).items():
+		(vcc,) = [p for p in footprints[sensor].Pads() if p.GetNumber() == "1"]
+		distance = math.dist(
+			mm_point(vcc.GetPosition()), pad_mm(footprints[cap], "+3V3")
+		)
+		assert distance <= SENSOR_CAP_MAX_DISTANCE_MM, cap
+		assert footprints[cap].GetLayer() == pcbnew.B_Cu
+
+
+def test_crystal_next_to_mcu(board: pcbnew.BOARD) -> None:
+	footprints = by_ref(board)
+	(crystal,) = with_id(board, FOOTPRINTS["crystal"])
+	(mcu,) = with_id(board, FOOTPRINTS["mcu"])
+	assert math.dist(pad_mm(crystal, "XIN"), pad_mm(mcu, "XIN")) <= (
+		CRYSTAL_MAX_DISTANCE_MM
+	)
+	assert crystal.GetReference() in footprints
+
+
+def test_encoder_satellites_next_to_pins(board: pcbnew.BOARD, side: Side) -> None:
+	encoders = with_id(board, ENCODER_FOOTPRINT)
+	if side == "right":
+		assert not encoders
+		return
+	(encoder,) = encoders
+	footprints = by_ref(board)
+	for net, ref in {**ENCODER_PULLUP_REFS, **ENCODER_FILTER_REFS}.items():
+		distance = math.dist(pad_mm(encoder, net), pad_mm(footprints[ref], net))
+		assert distance <= ENCODER_SATELLITE_MAX_DISTANCE_MM, ref
+		assert footprints[ref].GetLayer() == pcbnew.B_Cu
+
+
+def test_parts_at_placement_poses(board: pcbnew.BOARD, side: Side) -> None:
+	footprints = by_ref(board)
+	for ref, pose in part_poses(BOARD_DIR, side).items():
+		assert close(mm_point(footprints[ref].GetPosition()), (pose.x_mm, pose.y_mm))
+		assert orientation_matches(footprints[ref], pose.kicad_orientation_deg), ref
+
+
+def test_right_absolute_poses_mirror_left(work_dir: Path) -> None:
+	placement = load_placement(BOARD_DIR)
+	boards = {
+		side: by_ref(pcbnew.LoadBoard(str(work_dir / committed_pcb(side))))
+		for side in SIDES
+	}
+	absolute = [
+		ref
+		for ref, entry in placement["left"].items()
+		if "anchor" not in entry and ref not in placement["right"]
+	]
+	assert absolute
+	for ref in absolute:
+		left, right = boards["left"][ref], boards["right"][ref]
+		x, y = mm_point(left.GetPosition())
+		assert close(mm_point(right.GetPosition()), (-x, y))
+		assert orientation_matches(right, -left.GetOrientationDegrees())
+
+
+def svg_holes(path: Path) -> list[tuple[float, float]]:
+	return sorted(
+		(float(c.attrib["cx"]), float(c.attrib["cy"]))
+		for c in ET.parse(path).getroot().iter(f"{SVG}circle")
+		if float(c.attrib["r"]) == pytest.approx(HOLE_DRILL_MM / 2)
+	)
+
+
+def test_holes_identical_in_pcb_and_plates(board: pcbnew.BOARD, side: Side) -> None:
+	pcb = sorted(
+		mm_point(h.GetPosition()) for h in with_id(board, MOUNTING_HOLE_FOOTPRINT)
+	)
+	for kind in ("plate", "bottom"):
+		svg = svg_holes(BOARD_DIR / "plate" / f"{side}-{kind}.svg")
+		assert len(svg) == len(pcb)
+		for found, wanted in zip(svg, pcb, strict=True):
+			assert math.dist(found, wanted) < 1e-3
+
+
+def test_holes_clear_of_parts(board: pcbnew.BOARD) -> None:
+	for hole in with_id(board, MOUNTING_HOLE_FOOTPRINT):
+		for footprint in parts(board):
+			assert not courtyard(footprint).Collide(
+				hole.GetPosition(), pcbnew.FromMM(HOLE_PART_CLEARANCE_MM)
+			), footprint.GetReference()
 
 
 def committed_pcb(side: Side) -> Path:
@@ -426,8 +615,15 @@ def edited_copy(tmp_path: Path) -> Path:
 	return copy
 
 
+def without_placement(copy: Path, ref: str) -> None:
+	placement = load_placement(copy)
+	del placement["left"][ref]
+	(copy / PLACEMENT_FILE).write_text(json.dumps(placement))
+
+
 def test_update_preserves_manual_work(tmp_path: Path) -> None:
 	copy = edited_copy(tmp_path)
+	without_placement(copy, "C1")
 	target = copy / committed_pcb("left")
 	board = pcbnew.LoadBoard(str(target))
 	part = by_ref(board)["C1"]
@@ -461,6 +657,7 @@ def test_update_preserves_manual_work(tmp_path: Path) -> None:
 
 def test_update_parks_missing_and_deletes_orphans(tmp_path: Path) -> None:
 	copy = edited_copy(tmp_path)
+	without_placement(copy, "C1")
 	target = copy / committed_pcb("right")
 	board = pcbnew.LoadBoard(str(target))
 	board.Delete(by_ref(board)["C1"])

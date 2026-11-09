@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
 
@@ -18,6 +19,9 @@ HEAD_DIAMETER_MM = 3.8
 HEAD_CLEARANCE_MM = 0.3
 HOLE_EDGE_CLEARANCE_MM = HOLE_DIAMETER_MM / 2 + HOLE_WEB_MM
 HEAD_KEYCAP_CLEARANCE_MM = HEAD_DIAMETER_MM / 2 + HEAD_CLEARANCE_MM
+STANDOFF_DIAMETER_MM = 4.0
+STANDOFF_PART_CLEARANCE_MM = 0.3
+HOLE_PART_CLEARANCE_MM = STANDOFF_DIAMETER_MM / 2 + STANDOFF_PART_CLEARANCE_MM
 CANDIDATE_STEP_MM = 0.5
 MIN_HOLES = 6
 NEARBY_KEY_RADIUS_MM = 20.0
@@ -175,6 +179,12 @@ def keycap_distance_mm(
 	return _rect_distance_mm(to_local(key, point), (-half, -half, half, half))
 
 
+def polygon_distance_mm(point: Point, polygon: list[Point]) -> float:
+	if point_in_polygon(point, polygon):
+		return 0.0
+	return distance_to_outline_edge_mm(point, polygon)
+
+
 def _is_clear(
 	point: Point,
 	positions: list[KeyPosition],
@@ -198,7 +208,10 @@ def _is_clear(
 
 
 def _candidates(
-	positions: list[KeyPosition], outline: list[Point], spacing_mm: float
+	positions: list[KeyPosition],
+	outline: list[Point],
+	spacing_mm: float,
+	keepouts: Sequence[list[Point]],
 ) -> list[Point]:
 	xs = [x for x, _ in outline]
 	ys = [y for _, y in outline]
@@ -212,7 +225,15 @@ def _candidates(
 		for i in range(steps_x + 1)
 		for j in range(steps_y + 1)
 	)
-	return [p for p in grid if _is_clear(p, positions, outline, spacing_mm)]
+	return [
+		p
+		for p in grid
+		if _is_clear(p, positions, outline, spacing_mm)
+		and all(
+			polygon_distance_mm(p, keepout) >= HOLE_PART_CLEARANCE_MM
+			for keepout in keepouts
+		)
+	]
 
 
 def mirror_holes(holes: list[Point]) -> list[Point]:
@@ -223,8 +244,9 @@ def mounting_holes(
 	positions: list[KeyPosition],
 	outline: list[Point],
 	spacing_mm: float = DEFAULT_SPACING_MM,
+	keepouts: Sequence[list[Point]] = (),
 ) -> list[Point]:
-	candidates = _candidates(positions, outline, spacing_mm)
+	candidates = _candidates(positions, outline, spacing_mm, keepouts)
 	cx = sum(x for x, _ in outline) / len(outline)
 	cy = sum(y for _, y in outline) / len(outline)
 	holes = [max(candidates, key=lambda p: (math.hypot(p[0] - cx, p[1] - cy), p))]

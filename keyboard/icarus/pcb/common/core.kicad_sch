@@ -9102,7 +9102,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12"
+		(property "Footprint" "icarus:USB_C_Receptacle_HRO_TYPE-C-31-M-12"
 			(at 180.34 210.82 0)
 			(hide yes)
 			(show_name no)
@@ -9500,7 +9500,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12"
+		(property "Footprint" "icarus:USB_C_Receptacle_HRO_TYPE-C-31-M-12"
 			(at 256.54 210.82 0)
 			(hide yes)
 			(show_name no)

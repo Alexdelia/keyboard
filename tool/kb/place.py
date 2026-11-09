@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 import subprocess
@@ -6,26 +5,42 @@ import sys
 import tempfile
 import uuid
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 import pcbnew
 
 from kb.footprint import (
+	ENCODER_FILTER_OFFSETS_MM,
+	ENCODER_FILTER_ORIENTATION_DEG,
 	ENCODER_FOOTPRINT,
+	ENCODER_PULLUP_OFFSETS_MM,
+	ENCODER_PULLUP_ORIENTATION_DEG,
 	MOUNTING_HOLE_FOOTPRINT,
-	PROJECT_LIBRARY,
-	PROJECT_LIBRARY_RELATIVE,
 	SWITCH_FOOTPRINT,
+	library_dir,
+	place_on_bottom,
 	place_sensor,
+	place_sensor_cap,
 	set_orientation,
 )
-from kb.layout import KeyPosition, Point, Side, half_positions, load_board, to_board
-from kb.outline import (
-	ENCODER_SHAFT_LOCAL_MM,
-	board_outline,
-	mirror_holes,
-	mounting_holes,
+from kb.layout import (
+	KeyPosition,
+	Located,
+	Point,
+	Side,
+	half_positions,
+	load_board,
+	to_board,
+)
+from kb.outline import ENCODER_SHAFT_LOCAL_MM, board_outline
+from kb.placement import Pose, board_holes, part_poses
+from kb.schematic import (
+	ENCODER_FILTER_REFS,
+	ENCODER_PULLUP_REFS,
+	sensor_decoupling_refs,
 )
 from kb.sexpr import Sym, dump, parse
 
@@ -185,15 +200,9 @@ def export_netlist(schematic: Path) -> Netlist:
 		return parse_netlist(target.read_text())
 
 
-def _library_dir(library: str) -> Path:
-	if library == PROJECT_LIBRARY:
-		return BOARD_DIR / PROJECT_LIBRARY_RELATIVE
-	return Path(os.environ["KICAD10_FOOTPRINT_DIR"]) / f"{library}.pretty"
-
-
 def load_footprint(footprint_id: str) -> pcbnew.FOOTPRINT:
 	library, _, name = footprint_id.partition(":")
-	footprint = pcbnew.FootprintLoad(str(_library_dir(library)), name)
+	footprint = pcbnew.FootprintLoad(str(library_dir(library)), name)
 	if footprint is None:
 		raise ValueError(f"footprint not found: {footprint_id}")
 	footprint.SetFPID(pcbnew.LIB_ID(library, name))
@@ -213,6 +222,7 @@ def _set_field(footprint: pcbnew.FOOTPRINT, name: str, text: str) -> None:
 
 def _apply_component(footprint: pcbnew.FOOTPRINT, component: Component) -> None:
 	footprint.SetReference(component.ref)
+	footprint.Reference().SetVisible(False)
 	footprint.SetValue(component.value)
 	for name, text in component.fields.items():
 		if name not in SCHEMATIC_ONLY_FIELDS:
@@ -262,10 +272,23 @@ def _place(footprint: pcbnew.FOOTPRINT, point: Point, orientation_deg: float) ->
 	footprint.SetPosition(_vector(point))
 
 
-def _place_encoder(footprint: pcbnew.FOOTPRINT, knob: KeyPosition) -> None:
+def encoder_pose(knob: KeyPosition) -> Pose:
 	shaft = to_board(knob, ENCODER_SHAFT_LOCAL_MM)
-	origin = (2 * knob.x_mm - shaft[0], 2 * knob.y_mm - shaft[1])
-	_place(footprint, origin, knob.kicad_orientation_deg)
+	return Pose(
+		2 * knob.x_mm - shaft[0], 2 * knob.y_mm - shaft[1], knob.kicad_orientation_deg
+	)
+
+
+def _place_top(footprint: pcbnew.FOOTPRINT, pose: Located) -> None:
+	set_orientation(footprint, pose.kicad_orientation_deg)
+	footprint.SetPosition(pcbnew.VECTOR2I_MM(pose.x_mm, pose.y_mm))
+
+
+def _place_part(footprint: pcbnew.FOOTPRINT, pose: Located) -> None:
+	if _is_through_hole(footprint):
+		_place_top(footprint, pose)
+	else:
+		place_on_bottom(footprint, pose, (0.0, 0.0), 0.0)
 
 
 def _flip_to_bottom(footprint: pcbnew.FOOTPRINT) -> None:
@@ -315,13 +338,6 @@ def _configure(board: pcbnew.BOARD) -> None:
 	settings.SetGridOrigin(origin)
 
 
-def _left_holes(spacing: float, board_dir: Path) -> list[Point]:
-	positions = half_positions(load_board(board_dir), "left")
-	return mounting_holes(
-		positions, board_outline(positions, spacing_mm=spacing), spacing
-	)
-
-
 def _bottom(footprint: pcbnew.FOOTPRINT) -> int:
 	box = footprint.GetBoundingBox(True)
 	return box.GetY() + box.GetHeight()
@@ -363,36 +379,97 @@ def _prune(board: pcbnew.BOARD, netlist: Netlist) -> dict[str, pcbnew.FOOTPRINT]
 	return kept
 
 
+Placer = Callable[[pcbnew.FOOTPRINT], None]
+
+
+def _encoder_placers(knob: KeyPosition) -> dict[str, Placer]:
+	frame = _shifted(encoder_pose(knob))
+	placers: dict[str, Placer] = {
+		net_ref: partial(
+			place_on_bottom,
+			frame=frame,
+			local=ENCODER_PULLUP_OFFSETS_MM[net],
+			degrees=ENCODER_PULLUP_ORIENTATION_DEG,
+		)
+		for net, net_ref in ENCODER_PULLUP_REFS.items()
+	}
+	placers.update(
+		{
+			net_ref: partial(
+				place_on_bottom,
+				frame=frame,
+				local=ENCODER_FILTER_OFFSETS_MM[net],
+				degrees=ENCODER_FILTER_ORIENTATION_DEG,
+			)
+			for net, net_ref in ENCODER_FILTER_REFS.items()
+		}
+	)
+	return placers
+
+
+def generated_placers(
+	netlist: Netlist, positions: list[KeyPosition], board_dir: Path, side: Side
+) -> dict[str, Placer]:
+	by_key = {p.id: p for p in positions}
+	decoupling = sensor_decoupling_refs(side)
+	placers: dict[str, Placer] = {}
+	for component in netlist.components:
+		key = by_key.get(component.fields.get("KEY", ""))
+		if key is None:
+			continue
+		if component.footprint == ENCODER_FOOTPRINT:
+			placers[component.ref] = partial(
+				_place_top, pose=_shifted(encoder_pose(key))
+			)
+			placers.update(_encoder_placers(key))
+		else:
+			placers[component.ref] = partial(place_sensor, key=_shifted(key))
+			placers[decoupling[component.ref]] = partial(
+				place_sensor_cap, key=_shifted(key)
+			)
+	for ref, pose in part_poses(board_dir, side).items():
+		placers[ref] = partial(_place_part, pose=_shifted(pose))
+	return placers
+
+
+def _replace(
+	board: pcbnew.BOARD, old: pcbnew.FOOTPRINT, fresh: pcbnew.FOOTPRINT
+) -> None:
+	group = old.GetParentGroup()
+	if group is not None:
+		group.RemoveItem(old)
+		group.AddItem(fresh)
+	board.Delete(old)
+
+
 def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	layout_board = load_board(board_dir)
 	spacing = layout_board.layout["spacingMm"]
 	positions = half_positions(layout_board, side)
 	outline = board_outline(positions, spacing_mm=spacing)
-	left_holes = _left_holes(spacing, board_dir)
-	holes = left_holes if side == "left" else mirror_holes(left_holes)
+	holes = board_holes(board_dir)[side]
 	netlist = export_netlist(board_dir / "pcb" / side / f"{side}.kicad_sch")
+	placers = generated_placers(netlist, positions, board_dir, side)
 
 	_configure(board)
 	footprints = _prune(board, netlist)
-	by_key = {p.id: p for p in positions}
-	keyed = {c.ref for c in netlist.components if c.fields.get("KEY")}
-	existing = [fp for ref, fp in footprints.items() if ref not in keyed]
-	parking = Parking(parking_origin(outline, existing))
+	kept = [fp for ref, fp in footprints.items() if ref not in placers]
+	parking = Parking(parking_origin(outline, kept))
 	for component in netlist.components:
-		is_new = component.ref not in footprints
-		if is_new:
-			footprints[component.ref] = load_footprint(component.footprint)
-			board.Add(footprints[component.ref])
+		placer = placers.get(component.ref)
+		existing = footprints.get(component.ref)
+		if existing is None or placer is not None:
+			fresh = load_footprint(component.footprint)
+			board.Add(fresh)
+			if existing is not None:
+				_replace(board, existing, fresh)
+			footprints[component.ref] = fresh
 		footprint = footprints[component.ref]
 		_apply_component(footprint, component)
-		key = by_key.get(component.fields.get("KEY", ""))
-		if key is None:
-			if is_new:
-				_park(footprint, parking)
-		elif component.footprint == ENCODER_FOOTPRINT:
-			_place_encoder(footprint, key)
-		else:
-			place_sensor(footprint, _shifted(key))
+		if placer is not None:
+			placer(footprint)
+		elif existing is None:
+			_park(footprint, parking)
 	_assign_nets(board, footprints, netlist.nets)
 
 	switch_index = 0
@@ -411,13 +488,11 @@ def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	_add_edge(board, outline)
 
 
-def _shifted(key: KeyPosition) -> KeyPosition:
-	return KeyPosition(
-		id=key.id,
-		kind=key.kind,
-		x_mm=key.x_mm + BOARD_ORIGIN_MM[0],
-		y_mm=key.y_mm + BOARD_ORIGIN_MM[1],
-		kicad_orientation_deg=key.kicad_orientation_deg,
+def _shifted(pose: Located) -> Pose:
+	return Pose(
+		pose.x_mm + BOARD_ORIGIN_MM[0],
+		pose.y_mm + BOARD_ORIGIN_MM[1],
+		pose.kicad_orientation_deg,
 	)
 
 

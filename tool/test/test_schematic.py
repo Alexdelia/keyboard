@@ -1,3 +1,4 @@
+import fnmatch
 import json
 import re
 import subprocess
@@ -7,6 +8,7 @@ from pathlib import Path
 import pytest
 from kb.layout import Side, half_positions, load_board
 from kb.parts import load_parts
+from kb.schematic import footprints_by_ref, sensor_decoupling_refs
 from kb.sexpr import parse
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
@@ -464,3 +466,72 @@ def test_regeneration_is_byte_identical(tmp_path: Path) -> None:
 		assert (tmp_path / relative).read_bytes() == (
 			BOARD_DIR / relative
 		).read_bytes(), relative
+
+
+JLC_RULES_MM = {
+	"min_track_width": 0.127,
+	"min_clearance": 0.127,
+	"min_through_hole_diameter": 0.3,
+	"min_via_diameter": 0.6,
+	"min_hole_to_hole": 0.5,
+	"min_copper_edge_clearance": 0.3,
+}
+NETCLASS_TRACKS_MM = {"Default": 0.2, "Power": 0.4, "USB": 0.2}
+POWER_NETS = ("+5V", "+3V3", "GND", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS")
+USB_NETS = ("USB_DP", "USB_DM", "USB_DP_CONN", "USB_DM_CONN")
+
+
+def project(side: Side) -> dict:
+	return json.loads((PCB_DIR / side / f"{side}.kicad_pro").read_text())
+
+
+def test_project_has_jlc_design_rules(side: Side) -> None:
+	rules = project(side)["board"]["design_settings"]["rules"]
+	for name, value in JLC_RULES_MM.items():
+		assert rules[name] == pytest.approx(value), name
+
+
+def test_project_has_netclasses(side: Side) -> None:
+	settings = project(side)["net_settings"]
+	classes = {c["name"]: c for c in settings["classes"]}
+	for name, track in NETCLASS_TRACKS_MM.items():
+		assert classes[name]["track_width"] == pytest.approx(track)
+		assert classes[name]["via_diameter"] == pytest.approx(0.6)
+		assert classes[name]["via_drill"] == pytest.approx(0.3)
+		assert classes[name]["clearance"] >= JLC_RULES_MM["min_clearance"]
+	assert classes["USB"]["diff_pair_width"] == pytest.approx(0.2)
+	assert classes["USB"]["diff_pair_gap"] == pytest.approx(0.2)
+	patterns = {p["pattern"]: p["netclass"] for p in settings["netclass_patterns"]}
+	assert {f"*{net}": "Power" for net in POWER_NETS}.items() <= patterns.items()
+	assert {f"*{net}": "USB" for net in USB_NETS}.items() <= patterns.items()
+
+
+def test_netclass_patterns_match_only_intended_nets(
+	netlist: Netlist, side: Side
+) -> None:
+	patterns = [
+		p["pattern"] for p in project(side)["net_settings"]["netclass_patterns"]
+	]
+	matched = {
+		name.rsplit("/", 1)[-1]
+		for name in netlist.nets
+		if any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns)
+	}
+	assert matched == {*POWER_NETS, *USB_NETS}
+
+
+def test_sensor_decoupling_pairs(netlist: Netlist, side: Side) -> None:
+	pairs = sensor_decoupling_refs(side)
+	assert len(pairs) == len(sensed_ids(side))
+	for sensor, cap in pairs.items():
+		assert netlist.components[sensor]["KEY"]
+		assert netlist.nodes_of(cap) == {"1": "+3V3", "2": "GND"}
+
+
+def test_footprints_by_ref_match_netlist(netlist: Netlist, side: Side) -> None:
+	footprints = footprints_by_ref(side)
+	assert footprints == {
+		ref: fields["footprint"]
+		for ref, fields in netlist.components.items()
+		if fields["footprint"]
+	}

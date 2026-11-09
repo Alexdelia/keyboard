@@ -11,6 +11,9 @@ from kb.footprint import (
 	SENSOR_OFFSET_MM,
 	SENSOR_ORIENTATION_DEG,
 	SWITCH_FOOTPRINT,
+	USB_EDGE_LOCAL_Y_MM,
+	USB_FOOTPRINT,
+	USB_MOUTH_HALF_WIDTH_MM,
 	place_sensor,
 )
 from kb.layout import KeyPosition, half_positions, load_board
@@ -31,6 +34,7 @@ PEC11R_PIN_ROW_TO_CENTER_MM = 7.5
 PEC11R_TAB_SPACING_MM = 13.2
 PEC11R_PIN_DRILL_MM = 1.0
 PEC11R_TAB_SLOT_MM = (2.6, 1.8)
+DATASHEET_HOLE_TO_EDGE_MM = 5.79
 SOT23_PADS_MM = {"1": (-0.9375, -0.95), "2": (-0.9375, 0.95), "3": (0.9375, 0)}
 
 
@@ -359,3 +363,40 @@ def test_encoder_footprint_follows_pec11r_layout() -> None:
 		assert (pcbnew.ToMM(drill.x), pcbnew.ToMM(drill.y)) == pytest.approx(
 			PEC11R_TAB_SLOT_MM
 		)
+
+
+SILK_PAD_CLEARANCE_MM = 0.1
+
+
+def silk_shapes(footprint: pcbnew.FOOTPRINT) -> list:
+	return [
+		item for item in footprint.GraphicalItems() if item.GetLayer() == pcbnew.F_SilkS
+	]
+
+
+def test_encoder_silk_clear_of_pads() -> None:
+	encoder = load_footprint(LIBRARY_DIR, ENCODER_FOOTPRINT)
+	shapes = silk_shapes(encoder)
+	assert shapes
+	for shape in shapes:
+		for pad in encoder.Pads():
+			clearance = pcbnew.FromMM(SILK_PAD_CLEARANCE_MM)
+			assert not pad.GetEffectivePolygon(pcbnew.F_Cu).Collide(
+				shape.GetEffectiveShape(), clearance
+			)
+
+
+def test_usb_footprint_marks_datasheet_board_edge() -> None:
+	usb = load_footprint(LIBRARY_DIR, USB_FOOTPRINT)
+	(edge,) = [i for i in usb.GraphicalItems() if i.GetLayer() == pcbnew.Dwgs_User]
+	assert {mm(edge.GetStart()), mm(edge.GetEnd())} == {
+		(-USB_MOUTH_HALF_WIDTH_MM, USB_EDGE_LOCAL_Y_MM),
+		(USB_MOUTH_HALF_WIDTH_MM, USB_EDGE_LOCAL_Y_MM),
+	}
+	holes = [p for p in usb.Pads() if p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH]
+	assert {
+		round(mm(h.GetPosition())[1] + DATASHEET_HOLE_TO_EDGE_MM, 3) for h in holes
+	} == {USB_EDGE_LOCAL_Y_MM}
+	for shape in silk_shapes(usb):
+		box = shape.GetBoundingBox()
+		assert pcbnew.ToMM(box.GetBottom()) < USB_EDGE_LOCAL_Y_MM

@@ -1,6 +1,125 @@
 {
+  "board": {
+    "design_settings": {
+      "diff_pair_dimensions": [
+        {
+          "gap": 0.0,
+          "via_gap": 0.0,
+          "width": 0.0
+        },
+        {
+          "gap": 0.2,
+          "via_gap": 0.2,
+          "width": 0.2
+        }
+      ],
+      "rules": {
+        "min_clearance": 0.127,
+        "min_copper_edge_clearance": 0.3,
+        "min_hole_to_hole": 0.5,
+        "min_through_hole_diameter": 0.3,
+        "min_track_width": 0.127,
+        "min_via_annular_width": 0.15,
+        "min_via_diameter": 0.6
+      },
+      "track_widths": [
+        0.0,
+        0.2,
+        0.4
+      ],
+      "via_dimensions": [
+        {
+          "diameter": 0.0,
+          "drill": 0.0
+        },
+        {
+          "diameter": 0.6,
+          "drill": 0.3
+        }
+      ]
+    }
+  },
   "meta": {
     "filename": "right.kicad_pro",
     "version": 3
+  },
+  "net_settings": {
+    "classes": [
+      {
+        "clearance": 0.15,
+        "diff_pair_gap": 0.2,
+        "diff_pair_via_gap": 0.2,
+        "diff_pair_width": 0.2,
+        "name": "Default",
+        "track_width": 0.2,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      {
+        "clearance": 0.15,
+        "diff_pair_gap": 0.2,
+        "diff_pair_via_gap": 0.2,
+        "diff_pair_width": 0.2,
+        "name": "Power",
+        "track_width": 0.4,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      {
+        "clearance": 0.15,
+        "diff_pair_gap": 0.2,
+        "diff_pair_via_gap": 0.2,
+        "diff_pair_width": 0.2,
+        "name": "USB",
+        "track_width": 0.2,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      }
+    ],
+    "meta": {
+      "version": 5
+    },
+    "netclass_patterns": [
+      {
+        "netclass": "Power",
+        "pattern": "*+5V"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "*+3V3"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "*GND"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "*HOST_VBUS"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "*HOST_VBUS_RAW"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "*LINK_VBUS"
+      },
+      {
+        "netclass": "USB",
+        "pattern": "*USB_DP"
+      },
+      {
+        "netclass": "USB",
+        "pattern": "*USB_DM"
+      },
+      {
+        "netclass": "USB",
+        "pattern": "*USB_DP_CONN"
+      },
+      {
+        "netclass": "USB",
+        "pattern": "*USB_DM_CONN"
+      }
+    ]
   }
 }

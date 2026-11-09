@@ -2,7 +2,6 @@
 	(version 7)
 	(lib (name "Button_Switch_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Button_Switch_SMD.pretty") (options "") (descr ""))
 	(lib (name "Capacitor_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Capacitor_SMD.pretty") (options "") (descr ""))
-	(lib (name "Connector_USB") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Connector_USB.pretty") (options "") (descr ""))
 	(lib (name "Crystal") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Crystal.pretty") (options "") (descr ""))
 	(lib (name "Diode_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Diode_SMD.pretty") (options "") (descr ""))
 	(lib (name "Fuse") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Fuse.pretty") (options "") (descr ""))
