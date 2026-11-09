@@ -43,7 +43,7 @@ ignore = [
 
 [lint.per-file-ignores]
 "tool/kb/plate.py" = ["PLR0913"]
-"tool/kb/drawing.py" = ["PLR0913", "S603", "S607"]
+"tool/kb/drawing.py" = ["FBT003", "PLR0913", "S603", "S607"]
 "tool/kb/place.py" = ["FBT003", "S603", "S607"]
 "tool/test/test_drawing.py" = ["S314"]
 "tool/test/test_drc.py" = ["S603", "S607"]

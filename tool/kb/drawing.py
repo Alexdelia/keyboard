@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+import pcbnew
 from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as ShapelyPoint
 from shapely.ops import nearest_points
@@ -79,7 +80,11 @@ KICAD_PCB_LAYERS = "Edge.Cuts,B.Cu,B.Courtyard,B.Fab"
 KICAD_SCHEMATICS = {"left": ("left", "left-core"), "right": ("right", "right-core")}
 KICAD_TITLE = re.compile(r"<title>SVG Image created as (\S+) date [^<]*</title>")
 KICAD_DESCRIPTION = re.compile(r"(<desc>[^\n]*</desc>)")
-WHITE_BACKGROUND = '<rect x="0" y="0" width="100%" height="100%" fill="#ffffff"/>'
+KICAD_HEADER = re.compile(
+	r'width="[\d.]+mm" height="[\d.]+mm" '
+	r'viewBox="[\d.]+ [\d.]+ (?P<page_width>[\d.]+) [\d.]+"'
+)
+BOARD_SVG_MARGIN_MM = 3.0
 
 
 @dataclass(frozen=True)
@@ -1050,11 +1055,44 @@ def generate_views(board_dir: Path, out_dir: Path) -> None:
 	(out_dir / "stack.svg").write_text(stack_svg(board_dir))
 
 
-def _normalise_kicad_svg(text: str, add_background: bool) -> str:
-	text = KICAD_TITLE.sub(r"<title>SVG Image created as \1</title>", text)
-	if add_background:
-		text = KICAD_DESCRIPTION.sub(rf"\1\n{WHITE_BACKGROUND}", text, count=1)
-	return text
+def _normalise_kicad_svg(text: str) -> str:
+	return KICAD_TITLE.sub(r"<title>SVG Image created as \1</title>", text)
+
+
+def board_extent_mm(pcb_file: Path) -> Box:
+	box = pcbnew.LoadBoard(str(pcb_file)).ComputeBoundingBox(False)
+	return (
+		pcbnew.ToMM(box.GetX()),
+		pcbnew.ToMM(box.GetY()),
+		pcbnew.ToMM(box.GetX() + box.GetWidth()),
+		pcbnew.ToMM(box.GetY() + box.GetHeight()),
+	)
+
+
+def mirrored_view_box(extent: Box, page_width_mm: float) -> Box:
+	x0, y0, x1, y1 = extent
+	return (
+		page_width_mm - x1 - BOARD_SVG_MARGIN_MM,
+		y0 - BOARD_SVG_MARGIN_MM,
+		page_width_mm - x0 + BOARD_SVG_MARGIN_MM,
+		y1 + BOARD_SVG_MARGIN_MM,
+	)
+
+
+def _crop_board_svg(text: str, extent: Box) -> str:
+	header = KICAD_HEADER.search(text)
+	if header is None:
+		raise ValueError("kicad svg header not found")
+	x0, y0, x1, y1 = mirrored_view_box(extent, float(header["page_width"]))
+	width, height = x1 - x0, y1 - y0
+	size = f'width="{num(width)}mm" height="{num(height)}mm"'
+	view_box = f'viewBox="{num(x0)} {num(y0)} {num(width)} {num(height)}"'
+	background = (
+		f'<rect x="{num(x0)}" y="{num(y0)}" width="{num(width)}" '
+		f'height="{num(height)}" fill="#ffffff"/>'
+	)
+	text = KICAD_HEADER.sub(f"{size} {view_box}", text, count=1)
+	return KICAD_DESCRIPTION.sub(rf"\1\n{background}", text, count=1)
 
 
 def _run_kicad(*arguments: str) -> None:
@@ -1069,9 +1107,7 @@ def export_schematics(board_dir: Path, out_dir: Path) -> None:
 			_run_kicad("sch", "export", "svg", "-o", work, str(source))
 			for name in names:
 				text = (Path(work) / f"{name}.svg").read_text()
-				(out_dir / f"{name}.svg").write_text(
-					_normalise_kicad_svg(text, add_background=False)
-				)
+				(out_dir / f"{name}.svg").write_text(_normalise_kicad_svg(text))
 
 
 def export_boards(board_dir: Path, out_dir: Path) -> None:
@@ -1090,13 +1126,14 @@ def export_boards(board_dir: Path, out_dir: Path) -> None:
 				"--exclude-drawing-sheet",
 				"--mode-single",
 				"--page-size-mode",
-				"2",
+				"1",
 				"-o",
 				str(target),
 				str(source),
 			)
-			text = _normalise_kicad_svg(target.read_text(), add_background=True)
-			(out_dir / f"{side}.svg").write_text(text)
+			text = _normalise_kicad_svg(target.read_text())
+			cropped = _crop_board_svg(text, board_extent_mm(source))
+			(out_dir / f"{side}.svg").write_text(cropped)
 
 
 def generate(board_dir: Path, out_dir: Path) -> None:

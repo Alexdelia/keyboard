@@ -16,6 +16,6 @@ Output is deterministic; a test asserts these files equal a fresh run.
 | `stack.svg` | side cut of the layer stack to scale: plate, PCB, bottom parts, stem tube, bottom cover, plug |
 | `schematic/left.svg`, `schematic/right.svg` | KiCad root schematic of each half |
 | `schematic/left-core.svg`, `schematic/right-core.svg` | KiCad core sub-sheet of each half |
-| `pcb/left.svg`, `pcb/right.svg` | KiCad board seen from the bottom (mirrored, where the parts are): Edge.Cuts, B.Cu, B.Courtyard, B.Fab |
+| `pcb/left.svg`, `pcb/right.svg` | KiCad board seen from below, where all parts are, so left and right are swapped compared with the top views: Edge.Cuts, B.Cu, B.Courtyard, B.Fab. Cropped to the outline plus all footprints plus 3 mm |
 
-KiCad exports are normalised: the date in the title is dropped, the board export gets a white background.
+KiCad exports are normalised: the date in the title is dropped, the board export is cropped to everything on the board and gets a white background.

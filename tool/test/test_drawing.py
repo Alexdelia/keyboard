@@ -3,6 +3,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pcbnew
 import pytest
 from kb import drawing, plate
 from kb.layout import Board, Side, half_positions, load_board
@@ -16,6 +17,7 @@ DRAWING_DIR = BOARD_DIR / "drawing"
 SVG = "{http://www.w3.org/2000/svg}"
 SIDES: tuple[Side, ...] = ("left", "right")
 VIEWS = ("left", "right", "desk", "ports", "stack")
+A4_WIDTH_MM = 297.0
 KICAD_FILES = (
 	"schematic/left.svg",
 	"schematic/left-core.svg",
@@ -351,3 +353,26 @@ def test_stack_pcb_thickness_comes_from_plate(
 	monkeypatch.setattr(plate, "BOARD_THICKNESS_MM", 1.6)
 	drawing.generate_views(BOARD_DIR, tmp_path)
 	assert "PCB 1.6 thick" in stack_text(tmp_path / "stack.svg")
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_pcb_svg_view_box_contains_every_footprint(
+	everything: Path, side: Side
+) -> None:
+	x, y, width, height = map(
+		float, attribute(parse(everything / "pcb" / f"{side}.svg"), "viewBox").split()
+	)
+	board = pcbnew.LoadBoard(str(BOARD_DIR / "pcb" / side / f"{side}.kicad_pcb"))
+	footprints = list(board.GetFootprints())
+	assert len(footprints) > 50
+	for footprint in footprints:
+		box = footprint.GetBoundingBox()
+		left = A4_WIDTH_MM - pcbnew.ToMM(box.GetRight())
+		right = A4_WIDTH_MM - pcbnew.ToMM(box.GetX())
+		top = pcbnew.ToMM(box.GetY())
+		bottom = pcbnew.ToMM(box.GetBottom())
+		reference = footprint.GetReference()
+		assert x <= left, reference
+		assert right <= x + width, reference
+		assert y <= top, reference
+		assert bottom <= y + height, reference
