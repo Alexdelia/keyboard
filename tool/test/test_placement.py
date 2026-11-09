@@ -38,6 +38,37 @@ def test_anchored_entry_follows_its_anchor() -> None:
 	assert mirror_entry(entry) == entry
 
 
+def test_anchored_entry_not_following_pins_mirrors_in_anchor_frame() -> None:
+	entry = {
+		"anchor": "J1",
+		"x": 1.0,
+		"y": 2.0,
+		"rotationDeg": 90.0,
+		"followsPins": False,
+	}
+	assert mirror_entry(entry) == {**entry, "x": -1.0, "rotationDeg": -90.0}
+
+
+def test_mirrored_anchor_frame_is_true_mirror() -> None:
+	entries = {
+		"J": {"x": 10.0, "y": 5.0, "rotationDeg": 30.0},
+		"C": {
+			"anchor": "J",
+			"x": 2.0,
+			"y": 1.0,
+			"rotationDeg": 15.0,
+			"followsPins": False,
+		},
+	}
+	left = resolve_poses(entries)
+	right = resolve_poses({ref: mirror_entry(e) for ref, e in entries.items()})
+	assert right["C"].x_mm == pytest.approx(-left["C"].x_mm)
+	assert right["C"].y_mm == pytest.approx(left["C"].y_mm)
+	assert right["C"].kicad_orientation_deg == pytest.approx(
+		-left["C"].kicad_orientation_deg
+	)
+
+
 def test_right_override_wins() -> None:
 	placement = {
 		"left": {"A": {"x": 1.0, "y": 2.0, "rotationDeg": 10.0}},

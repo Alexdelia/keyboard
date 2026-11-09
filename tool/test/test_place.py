@@ -1,3 +1,4 @@
+import itertools
 import json
 import math
 import shutil
@@ -40,6 +41,7 @@ from kb.placement import (
 	board_holes,
 	load_placement,
 	part_poses,
+	side_entries,
 )
 from kb.schematic import (
 	ENCODER_FILTER_REFS,
@@ -805,3 +807,142 @@ def test_duplicate_uuids_are_rejected() -> None:
 def test_normalize_is_idempotent(side: Side) -> None:
 	text = (BOARD_DIR / committed_pcb(side)).read_text()
 	assert parse(normalize(text)) == parse(text)
+
+
+SATELLITE_COPPER_GAP_MM = 1.0
+MCU_FANOUT_CLEARANCE_MM = 1.5
+GAP_EPSILON_MM = 1e-3
+MCU_DECOUPLING_PINS = {
+	"C5": "1",
+	"C6": "10",
+	"C7": "22",
+	"C11": "23",
+	"C8": "33",
+	"C14": "43",
+	"C3": "44",
+	"C4": "45",
+	"C13": "48",
+	"C12": "50",
+}
+MCU_DECOUPLING_MAX_MM = 3.5
+USB_PATH_MAX_MM = 40.0
+EDGE_FACING_BAND_MM = 1.0
+EDGE_FACING_NETS = ("XIN", "XOUT", "SWCLK", "SWDIO", "RUN", "+3V3", "+1V1", "GND")
+POWER_DIODE_MAX_SPACING_MM = 11.0
+
+
+def copper_pads(footprint: pcbnew.FOOTPRINT) -> list[pcbnew.PAD]:
+	return [pad for pad in footprint.Pads() if pad.IsOnLayer(pcbnew.B_Cu)]
+
+
+def copper_closer_than(
+	first: pcbnew.FOOTPRINT, second: pcbnew.FOOTPRINT, gap_mm: float
+) -> bool:
+	clearance = pcbnew.FromMM(gap_mm - GAP_EPSILON_MM)
+	return any(
+		a.GetEffectivePolygon(pcbnew.B_Cu).Collide(
+			b.GetEffectiveShape(pcbnew.B_Cu), clearance
+		)
+		for a in copper_pads(first)
+		for b in copper_pads(second)
+	)
+
+
+def mcu_satellites(board: pcbnew.BOARD, side: Side) -> list[pcbnew.FOOTPRINT]:
+	(mcu,) = with_id(board, FOOTPRINTS["mcu"])
+	entries = side_entries(load_placement(BOARD_DIR), side)
+	footprints = by_ref(board)
+	return [
+		footprints[ref]
+		for ref, entry in entries.items()
+		if entry.get("anchor") == mcu.GetReference()
+	]
+
+
+def test_mcu_satellites_leave_routing_gaps(board: pcbnew.BOARD, side: Side) -> None:
+	satellites = mcu_satellites(board, side)
+	assert len(satellites) > 20
+	for index, first in enumerate(satellites):
+		for second in satellites[index + 1 :]:
+			assert not copper_closer_than(first, second, SATELLITE_COPPER_GAP_MM), (
+				first.GetReference(),
+				second.GetReference(),
+			)
+
+
+def test_mcu_fanout_ring_is_clear(board: pcbnew.BOARD, side: Side) -> None:
+	(mcu,) = with_id(board, FOOTPRINTS["mcu"])
+	for satellite in mcu_satellites(board, side):
+		assert not copper_closer_than(mcu, satellite, MCU_FANOUT_CLEARANCE_MM), (
+			satellite.GetReference()
+		)
+
+
+def pin_mm(footprint: pcbnew.FOOTPRINT, number: str) -> tuple[float, float]:
+	(pad,) = [p for p in footprint.Pads() if p.GetNumber() == number]
+	return mm_point(pad.GetPosition())
+
+
+def test_mcu_decoupling_next_to_pins(board: pcbnew.BOARD) -> None:
+	footprints = by_ref(board)
+	(mcu,) = with_id(board, FOOTPRINTS["mcu"])
+	for cap, pin in MCU_DECOUPLING_PINS.items():
+		(supply,) = [
+			p for p in footprints[cap].Pads() if not p.GetNetname().endswith("GND")
+		]
+		distance = math.dist(mm_point(supply.GetPosition()), pin_mm(mcu, pin))
+		assert distance <= MCU_DECOUPLING_MAX_MM, cap
+
+
+def net_pads(board: pcbnew.BOARD, suffix: str) -> list[tuple[float, float]]:
+	return [
+		mm_point(pad.GetPosition())
+		for footprint in parts(board)
+		for pad in footprint.Pads()
+		if pad.GetNetname().rsplit("/", 1)[-1] == suffix
+	]
+
+
+def chain_length(points: list[tuple[float, float]]) -> float:
+	remaining = sorted(points)
+	path = [remaining.pop(0)]
+	while remaining:
+		nearest = min(remaining, key=lambda p: math.dist(p, path[-1]))
+		remaining.remove(nearest)
+		path.append(nearest)
+	return sum(math.dist(a, b) for a, b in itertools.pairwise(path))
+
+
+def test_usb_path_is_short(board: pcbnew.BOARD) -> None:
+	for line in ("USB_DP", "USB_DM"):
+		total = chain_length(net_pads(board, f"{line}_CONN")) + chain_length(
+			net_pads(board, line)
+		)
+		assert total <= USB_PATH_MAX_MM, line
+
+
+def test_mcu_edge_facing_pins_stay_local(
+	board: pcbnew.BOARD, positions: list[KeyPosition]
+) -> None:
+	spacing = load_board(BOARD_DIR).layout["spacingMm"]
+	outline = board_outline(positions, spacing_mm=spacing)
+	(mcu,) = with_id(board, FOOTPRINTS["mcu"])
+	distances = [
+		(pad, distance_to_outline_edge_mm(mm_point(pad.GetPosition()), outline))
+		for pad in mcu.Pads()
+	]
+	nearest = min(distance for _, distance in distances)
+	for pad, distance in distances:
+		net = pad.GetNetname().rsplit("/", 1)[-1]
+		if distance <= nearest + EDGE_FACING_BAND_MM and net:
+			assert net.startswith("unconnected") or net in EDGE_FACING_NETS, net
+
+
+def test_link_diode_sits_with_host_power_diodes(board: pcbnew.BOARD) -> None:
+	footprints = by_ref(board)
+	for other in ("D1", "D3"):
+		distance = math.dist(
+			mm_point(footprints["D2"].GetPosition()),
+			mm_point(footprints[other].GetPosition()),
+		)
+		assert distance <= POWER_DIODE_MAX_SPACING_MM, other

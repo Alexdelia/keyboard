@@ -36,7 +36,7 @@ def load_placement(board_dir: Path) -> dict[str, Entries]:
 
 
 def mirror_entry(entry: dict) -> dict:
-	if "anchor" in entry:
+	if "anchor" in entry and entry.get("followsPins", True):
 		return entry
 	return {**entry, "x": -entry["x"], "rotationDeg": -entry["rotationDeg"]}
 

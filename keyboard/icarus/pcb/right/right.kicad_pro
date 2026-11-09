@@ -25,6 +25,7 @@
       "track_widths": [
         0.0,
         0.2,
+        0.25,
         0.4
       ],
       "via_dimensions": [
@@ -70,6 +71,16 @@
         "diff_pair_gap": 0.2,
         "diff_pair_via_gap": 0.2,
         "diff_pair_width": 0.2,
+        "name": "Rail",
+        "track_width": 0.25,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      {
+        "clearance": 0.15,
+        "diff_pair_gap": 0.2,
+        "diff_pair_via_gap": 0.2,
+        "diff_pair_width": 0.2,
         "name": "USB",
         "track_width": 0.2,
         "via_diameter": 0.6,
@@ -86,14 +97,6 @@
       },
       {
         "netclass": "Power",
-        "pattern": "*+3V3"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "*GND"
-      },
-      {
-        "netclass": "Power",
         "pattern": "*HOST_VBUS"
       },
       {
@@ -103,6 +106,14 @@
       {
         "netclass": "Power",
         "pattern": "*LINK_VBUS"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "*+3V3"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "*GND"
       },
       {
         "netclass": "USB",

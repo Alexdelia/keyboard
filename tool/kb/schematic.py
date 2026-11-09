@@ -40,10 +40,12 @@ VIA_DIAMETER_MM = 0.6
 VIA_DRILL_MM = 0.3
 DEFAULT_TRACK_MM = 0.2
 POWER_TRACK_MM = 0.4
+RAIL_TRACK_MM = 0.25
 USB_PAIR_WIDTH_MM = 0.2
 USB_PAIR_GAP_MM = 0.2
 NETCLASS_NETS = {
-	"Power": ("+5V", "+3V3", "GND", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS"),
+	"Power": ("+5V", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS"),
+	"Rail": ("+3V3", "GND"),
 	"USB": ("USB_DP", "USB_DM", "USB_DP_CONN", "USB_DM_CONN"),
 }
 LIBRARY_TABLE_VERSION = 7
@@ -467,7 +469,7 @@ def design_settings() -> dict:
 			},
 		],
 		"rules": DESIGN_RULES_MM,
-		"track_widths": [0.0, DEFAULT_TRACK_MM, POWER_TRACK_MM],
+		"track_widths": [0.0, DEFAULT_TRACK_MM, RAIL_TRACK_MM, POWER_TRACK_MM],
 		"via_dimensions": [
 			{"diameter": 0.0, "drill": 0.0},
 			{"diameter": VIA_DIAMETER_MM, "drill": VIA_DRILL_MM},
@@ -480,6 +482,7 @@ def net_settings() -> dict:
 		"classes": [
 			netclass("Default", DEFAULT_TRACK_MM, DEFAULT_TRACK_MM),
 			netclass("Power", POWER_TRACK_MM, DEFAULT_TRACK_MM),
+			netclass("Rail", RAIL_TRACK_MM, DEFAULT_TRACK_MM),
 			netclass("USB", USB_PAIR_WIDTH_MM, USB_PAIR_WIDTH_MM),
 		],
 		"meta": {"version": NET_SETTINGS_VERSION},

@@ -476,8 +476,11 @@ JLC_RULES_MM = {
 	"min_hole_to_hole": 0.5,
 	"min_copper_edge_clearance": 0.3,
 }
-NETCLASS_TRACKS_MM = {"Default": 0.2, "Power": 0.4, "USB": 0.2}
-POWER_NETS = ("+5V", "+3V3", "GND", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS")
+NETCLASS_TRACKS_MM = {"Default": 0.2, "Power": 0.4, "Rail": 0.25, "USB": 0.2}
+POWER_NETS = ("+5V", "HOST_VBUS", "HOST_VBUS_RAW", "LINK_VBUS")
+RAIL_NETS = ("+3V3", "GND")
+QFN_PITCH_MM = 0.4
+QFN_PAD_WIDTH_MM = 0.2
 USB_NETS = ("USB_DP", "USB_DM", "USB_DP_CONN", "USB_DM_CONN")
 
 
@@ -503,6 +506,7 @@ def test_project_has_netclasses(side: Side) -> None:
 	assert classes["USB"]["diff_pair_gap"] == pytest.approx(0.2)
 	patterns = {p["pattern"]: p["netclass"] for p in settings["netclass_patterns"]}
 	assert {f"*{net}": "Power" for net in POWER_NETS}.items() <= patterns.items()
+	assert {f"*{net}": "Rail" for net in RAIL_NETS}.items() <= patterns.items()
 	assert {f"*{net}": "USB" for net in USB_NETS}.items() <= patterns.items()
 
 
@@ -517,7 +521,14 @@ def test_netclass_patterns_match_only_intended_nets(
 		for name in netlist.nets
 		if any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns)
 	}
-	assert matched == {*POWER_NETS, *USB_NETS}
+	assert matched == {*POWER_NETS, *RAIL_NETS, *USB_NETS}
+
+
+def test_rail_tracks_fit_qfn_pads(side: Side) -> None:
+	classes = {c["name"]: c for c in project(side)["net_settings"]["classes"]}
+	rail = classes["Rail"]
+	reach = rail["track_width"] / 2 + QFN_PAD_WIDTH_MM / 2 + rail["clearance"]
+	assert reach <= QFN_PITCH_MM
 
 
 def test_sensor_decoupling_pairs(netlist: Netlist, side: Side) -> None:

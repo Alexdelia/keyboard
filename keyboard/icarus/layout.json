@@ -8,7 +8,7 @@
 	"originColumn": "middle",
 	"halves": {
 		"left": {
-			"tiltInwardDeg": 15.5,
+			"tiltInwardDeg": 18,
 			"columns": [
 				{
 					"name": "pinkyOuter",
@@ -59,7 +59,7 @@
 			]
 		},
 		"right": {
-			"tiltInwardDeg": 15.5,
+			"tiltInwardDeg": 18,
 			"columns": [
 				{
 					"name": "pinkyOuter",
