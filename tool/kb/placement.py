@@ -1,12 +1,49 @@
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
-from kb.footprint import footprint_file
-from kb.layout import Point, Side, half_positions, load_board, to_board
-from kb.outline import board_outline, mirror_holes, mounting_holes
-from kb.schematic import FOOTPRINTS, footprints_by_ref
+from kb.footprint import (
+	ENCODER_FILTER_OFFSETS_MM,
+	ENCODER_FILTER_ORIENTATION_DEG,
+	ENCODER_PULLUP_OFFSETS_MM,
+	ENCODER_PULLUP_ORIENTATION_DEG,
+	SENSOR_CAP_OFFSET_MM,
+	SENSOR_CAP_ORIENTATION_DEG,
+	SENSOR_OFFSET_MM,
+	SENSOR_ORIENTATION_DEG,
+	footprint_file,
+)
+from kb.layout import (
+	KeyPosition,
+	Located,
+	Point,
+	Pose,
+	Side,
+	half_positions,
+	load_board,
+	to_board,
+)
+from kb.outline import (
+	ENCODER_SHAFT_LOCAL_MM,
+	board_outline,
+	board_ports,
+	mirror_points,
+	mounting_holes,
+	plate_cutouts,
+	socket_pose,
+)
+from kb.schematic import (
+	ENCODER_FILTER_REFS,
+	ENCODER_PULLUP_REFS,
+	FOOTPRINTS,
+	PORT_REFS,
+	channel_map,
+	encoder_refs,
+	footprints_by_ref,
+	sensor_decoupling_refs,
+)
 from kb.sexpr import parse
 
 PLACEMENT_FILE = "placement.json"
@@ -16,13 +53,6 @@ BUTTON_ACCESS_HOLE_MM = 3.0
 
 Rect = tuple[float, float, float, float]
 Entries = dict[str, dict]
-
-
-@dataclass(frozen=True)
-class Pose:
-	x_mm: float
-	y_mm: float
-	kicad_orientation_deg: float
 
 
 @dataclass(frozen=True)
@@ -48,8 +78,10 @@ def side_entries(placement: dict[str, Entries], side: Side) -> Entries:
 	return {**mirrored, **placement["right"]}
 
 
-def resolve_poses(entries: Entries) -> dict[str, Pose]:
-	poses: dict[str, Pose] = {}
+def resolve_poses(
+	entries: Entries, seeds: Mapping[str, Pose] | None = None
+) -> dict[str, Pose]:
+	poses: dict[str, Pose] = dict(seeds or {})
 
 	def pose_of(ref: str) -> Pose:
 		if ref not in poses:
@@ -69,8 +101,67 @@ def resolve_poses(entries: Entries) -> dict[str, Pose]:
 	return poses
 
 
+def port_poses(board_dir: Path, side: Side) -> dict[str, Pose]:
+	ports = board_ports(load_board(board_dir), side)
+	return {ref: socket_pose(ports[name]) for name, ref in PORT_REFS.items()}
+
+
 def part_poses(board_dir: Path, side: Side) -> dict[str, Pose]:
-	return resolve_poses(side_entries(load_placement(board_dir), side))
+	return resolve_poses(
+		side_entries(load_placement(board_dir), side), port_poses(board_dir, side)
+	)
+
+
+def encoder_pose(knob: KeyPosition) -> Pose:
+	shaft = to_board(knob, ENCODER_SHAFT_LOCAL_MM)
+	return Pose(
+		2 * knob.x_mm - shaft[0], 2 * knob.y_mm - shaft[1], knob.kicad_orientation_deg
+	)
+
+
+def _bottom_pose(frame: Located, local: Point, degrees: float) -> Pose:
+	x, y = to_board(frame, local)
+	return Pose(x, y, frame.kicad_orientation_deg + degrees)
+
+
+def sensor_pose(key: Located) -> Pose:
+	return _bottom_pose(key, SENSOR_OFFSET_MM, SENSOR_ORIENTATION_DEG)
+
+
+def _encoder_part_poses(knob: KeyPosition, ref: str) -> dict[str, Pose]:
+	encoder = encoder_pose(knob)
+	poses = {ref: encoder}
+	for net, pullup in ENCODER_PULLUP_REFS.items():
+		poses[pullup] = _bottom_pose(
+			encoder, ENCODER_PULLUP_OFFSETS_MM[net], ENCODER_PULLUP_ORIENTATION_DEG
+		)
+	for net, cap in ENCODER_FILTER_REFS.items():
+		poses[cap] = _bottom_pose(
+			encoder, ENCODER_FILTER_OFFSETS_MM[net], ENCODER_FILTER_ORIENTATION_DEG
+		)
+	return poses
+
+
+def key_part_poses(board_dir: Path, side: Side) -> dict[str, Pose]:
+	by_id = {key.id: key for key in half_positions(load_board(board_dir), side)}
+	poses: dict[str, Pose] = {}
+	for key_id, (sensor, cap) in zip(
+		channel_map(side), sensor_decoupling_refs(side).items(), strict=True
+	):
+		key = by_id[key_id]
+		poses[sensor] = sensor_pose(key)
+		poses[cap] = _bottom_pose(key, SENSOR_CAP_OFFSET_MM, SENSOR_CAP_ORIENTATION_DEG)
+	for key_id, encoder in encoder_refs(side).items():
+		poses.update(_encoder_part_poses(by_id[key_id], encoder))
+	return poses
+
+
+def key_part_courtyards(board_dir: Path, side: Side) -> list[list[Point]]:
+	footprints = footprints_by_ref(side)
+	return [
+		courtyard_polygon(footprints[ref], pose)
+		for ref, pose in key_part_poses(board_dir, side).items()
+	]
 
 
 def _points(node: list) -> list[Point]:
@@ -131,30 +222,20 @@ def courtyard_polygon(footprint_id: str, pose: Pose) -> list[Point]:
 	return [to_board(pose, (x, flip * y)) for x, y in corners]
 
 
-def placed_courtyards(board_dir: Path, side: Side) -> dict[str, list[Point]]:
-	footprints = footprints_by_ref(side)
-	return {
-		ref: courtyard_polygon(footprints[ref], pose)
-		for ref, pose in part_poses(board_dir, side).items()
-	}
-
-
-def _mirrored(polygon: list[Point]) -> list[Point]:
-	return [(-x, y) for x, y in polygon]
-
-
 def board_holes(board_dir: Path) -> dict[Side, list[Point]]:
-	layout_board = load_board(board_dir)
-	spacing = layout_board.layout["spacingMm"]
-	left = half_positions(layout_board, "left")
+	board = load_board(board_dir)
 	keepouts = [
-		*placed_courtyards(board_dir, "left").values(),
-		*map(_mirrored, placed_courtyards(board_dir, "right").values()),
+		*key_part_courtyards(board_dir, "left"),
+		*map(mirror_points, key_part_courtyards(board_dir, "right")),
 	]
 	holes = mounting_holes(
-		left, board_outline(left, spacing_mm=spacing), spacing, keepouts
+		half_positions(board, "left"),
+		board_outline(board, "left"),
+		plate_cutouts(board),
+		board.layout["spacingMm"],
+		keepouts,
 	)
-	return {"left": holes, "right": mirror_holes(holes)}
+	return {"left": holes, "right": mirror_points(holes)}
 
 
 def button_holes(board_dir: Path, side: Side) -> list[tuple[float, float, float]]:

@@ -11,12 +11,12 @@ from kb.footprint import (
 	SENSOR_OFFSET_MM,
 	SENSOR_ORIENTATION_DEG,
 	SWITCH_FOOTPRINT,
-	USB_EDGE_LOCAL_Y_MM,
 	USB_FOOTPRINT,
-	USB_MOUTH_HALF_WIDTH_MM,
-	place_sensor,
+	place_on_bottom,
 )
 from kb.layout import KeyPosition, half_positions, load_board
+from kb.outline import USB_EDGE_LOCAL_Y_MM, USB_MOUTH_HALF_WIDTH_MM
+from kb.placement import sensor_pose
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 LIBRARY_DIR = BOARD_DIR / "pcb" / "lib"
@@ -92,7 +92,7 @@ def placed_sensors(
 	placed = []
 	for key in sensed_keys:
 		sensor = stock_sensor_on(board)
-		place_sensor(sensor, key)
+		place_on_bottom(sensor, sensor_pose(key))
 		placed.append((key, sensor))
 	return placed
 
@@ -277,7 +277,7 @@ def test_placed_hall_element_offset_rotates_with_key(
 	board: pcbnew.BOARD, most_rotated_key: KeyPosition
 ) -> None:
 	sensor = stock_sensor_on(board)
-	place_sensor(sensor, most_rotated_key)
+	place_on_bottom(sensor, sensor_pose(most_rotated_key))
 	angle = math.radians(most_rotated_key.kicad_orientation_deg)
 	offset_x, offset_y = SENSOR_OFFSET_MM
 	expected = (
@@ -305,13 +305,13 @@ def test_placed_sensor_pads_clear_center_hole(
 		assert center_hole_clearance_mm(sensor, key) >= MIN_HOLE_CLEARANCE_MM, key.id
 
 
-def test_place_sensor_is_idempotent(
+def test_place_on_bottom_is_idempotent(
 	board: pcbnew.BOARD, most_rotated_key: KeyPosition
 ) -> None:
 	sensor = stock_sensor_on(board)
-	place_sensor(sensor, most_rotated_key)
+	place_on_bottom(sensor, sensor_pose(most_rotated_key))
 	first = pad_coordinates_mm(sensor)
-	place_sensor(sensor, most_rotated_key)
+	place_on_bottom(sensor, sensor_pose(most_rotated_key))
 	assert sensor.GetLayer() == SENSOR_LAYER
 	assert pad_coordinates_mm(sensor) == pytest.approx(first)
 
@@ -326,11 +326,11 @@ def test_flipping_after_rotation_breaks_rotated_key(
 	assert center_hole_clearance_mm(sensor, most_rotated_key) < MIN_HOLE_CLEARANCE_MM
 
 
-def test_place_sensor_rejects_sensor_without_board(
+def test_place_on_bottom_rejects_footprint_without_board(
 	most_rotated_key: KeyPosition,
 ) -> None:
 	with pytest.raises(ValueError, match="added to a board"):
-		place_sensor(load_stock_sensor(), most_rotated_key)
+		place_on_bottom(load_stock_sensor(), sensor_pose(most_rotated_key))
 
 
 def test_encoder_footprint_follows_pec11r_layout() -> None:

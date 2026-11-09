@@ -4,8 +4,12 @@ from pathlib import Path
 import pcbnew
 import pytest
 from kb.footprint import USB_FOOTPRINT, place_on_bottom
-from kb.layout import Side, to_board
-from kb.outline import HOLE_PART_CLEARANCE_MM, polygon_distance_mm
+from kb.layout import Side, load_board, to_board
+from kb.outline import (
+	HOLE_PART_CLEARANCE_MM,
+	board_ports,
+	socket_pose,
+)
 from kb.place import load_footprint
 from kb.placement import (
 	BUTTON_ACCESS_HOLE_MM,
@@ -13,14 +17,25 @@ from kb.placement import (
 	board_holes,
 	button_holes,
 	courtyard_polygon,
+	key_part_courtyards,
+	key_part_poses,
 	load_placement,
 	mirror_entry,
 	part_poses,
-	placed_courtyards,
+	port_poses,
 	resolve_poses,
 	side_entries,
 )
-from kb.schematic import FOOTPRINTS, footprints_by_ref, sensor_decoupling_refs
+from kb.schematic import (
+	ENCODER_FILTER_REFS,
+	ENCODER_PULLUP_REFS,
+	FOOTPRINTS,
+	PORT_REFS,
+	footprints_by_ref,
+	sensor_decoupling_refs,
+)
+from shapely.geometry import Point as Spot
+from shapely.geometry import Polygon
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SIDES: tuple[Side, ...] = ("left", "right")
@@ -96,7 +111,7 @@ def test_courtyard_polygon_matches_pcbnew_on_bottom(degrees: float) -> None:
 	footprint = load_footprint(USB_FOOTPRINT)
 	board.Add(footprint)
 	pose = Pose(12.0, -7.0, degrees)
-	place_on_bottom(footprint, pose, (0.0, 0.0), 0.0)
+	place_on_bottom(footprint, pose)
 	outline = footprint.GetCourtyard(pcbnew.B_CrtYd).Outline(0)
 	found = [
 		(pcbnew.ToMM(p.x), pcbnew.ToMM(p.y))
@@ -116,17 +131,51 @@ def test_placement_refs_exist_and_are_not_rule_placed() -> None:
 		rule_placed = set(sensor_decoupling_refs(side).values())
 		assert set(entries) <= set(footprints)
 		assert not set(entries) & rule_placed
+		assert not set(entries) & set(PORT_REFS.values())
 		anchors = {e["anchor"] for e in entries.values() if "anchor" in e}
-		assert anchors <= set(entries)
+		assert anchors <= set(entries) | set(PORT_REFS.values())
 
 
-def test_holes_mirror_and_clear_placed_parts() -> None:
+def test_holes_mirror_and_clear_key_derived_parts() -> None:
 	holes = board_holes(BOARD_DIR)
 	assert holes["right"] == [(-x, y) for x, y in holes["left"]]
 	for side in SIDES:
-		for polygon in placed_courtyards(BOARD_DIR, side).values():
+		for polygon in key_part_courtyards(BOARD_DIR, side):
 			for hole in holes[side]:
-				assert polygon_distance_mm(hole, polygon) >= HOLE_PART_CLEARANCE_MM
+				assert Polygon(polygon).distance(Spot(hole)) >= HOLE_PART_CLEARANCE_MM
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_key_part_poses_cover_sensors_caps_and_encoder(side: Side) -> None:
+	poses = key_part_poses(BOARD_DIR, side)
+	decoupling = sensor_decoupling_refs(side)
+	expected = {
+		*decoupling,
+		*decoupling.values(),
+		"SW101",
+		*ENCODER_PULLUP_REFS.values(),
+		*ENCODER_FILTER_REFS.values(),
+	}
+	assert set(poses) == expected
+	assert len(key_part_courtyards(BOARD_DIR, side)) == len(expected)
+
+
+def test_seed_poses_anchor_entries() -> None:
+	entries = {"C": {"anchor": "J", "x": 2.0, "y": 0.0, "rotationDeg": 90.0}}
+	poses = resolve_poses(entries, {"J": Pose(10.0, 20.0, 90.0)})
+	assert poses["J"] == Pose(10.0, 20.0, 90.0)
+	assert (poses["C"].x_mm, poses["C"].y_mm) == pytest.approx((10.0, 18.0))
+	assert poses["C"].kicad_orientation_deg == pytest.approx(180.0)
+
+
+@pytest.mark.parametrize("side", SIDES)
+def test_ports_are_seed_poses(side: Side) -> None:
+	ports = board_ports(load_board(BOARD_DIR), side)
+	expected = {ref: socket_pose(ports[name]) for name, ref in PORT_REFS.items()}
+	assert port_poses(BOARD_DIR, side) == expected
+	poses = part_poses(BOARD_DIR, side)
+	for ref, pose in expected.items():
+		assert poses[ref] == pose
 
 
 def test_button_holes_at_buttons() -> None:

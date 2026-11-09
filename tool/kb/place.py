@@ -13,41 +13,28 @@ from pathlib import Path
 import pcbnew
 
 from kb.footprint import (
-	ENCODER_FILTER_OFFSETS_MM,
-	ENCODER_FILTER_ORIENTATION_DEG,
-	ENCODER_FOOTPRINT,
-	ENCODER_PULLUP_OFFSETS_MM,
-	ENCODER_PULLUP_ORIENTATION_DEG,
 	MOUNTING_HOLE_FOOTPRINT,
 	SWITCH_FOOTPRINT,
 	library_dir,
 	place_on_bottom,
-	place_sensor,
-	place_sensor_cap,
 	set_orientation,
 )
 from kb.layout import (
-	KeyPosition,
 	Located,
 	Point,
+	Pose,
 	Side,
 	half_positions,
 	load_board,
-	to_board,
 )
-from kb.outline import ENCODER_SHAFT_LOCAL_MM, board_outline
-from kb.placement import Pose, board_holes, part_poses
-from kb.schematic import (
-	ENCODER_FILTER_REFS,
-	ENCODER_PULLUP_REFS,
-	sensor_decoupling_refs,
-)
+from kb.outline import board_outline
+from kb.placement import board_holes, key_part_poses, part_poses
+from kb.plate import BOARD_THICKNESS_MM
 from kb.sexpr import Sym, dump, parse
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SIDES: tuple[Side, ...] = ("left", "right")
 BOARD_ORIGIN_MM = (80.0, 60.0)
-BOARD_THICKNESS_MM = 1.2
 EDGE_WIDTH_MM = 0.05
 PARKING_GAP_MM = 2.0
 PARKING_MARGIN_MM = 10.0
@@ -272,13 +259,6 @@ def _place(footprint: pcbnew.FOOTPRINT, point: Point, orientation_deg: float) ->
 	footprint.SetPosition(_vector(point))
 
 
-def encoder_pose(knob: KeyPosition) -> Pose:
-	shaft = to_board(knob, ENCODER_SHAFT_LOCAL_MM)
-	return Pose(
-		2 * knob.x_mm - shaft[0], 2 * knob.y_mm - shaft[1], knob.kicad_orientation_deg
-	)
-
-
 def _place_top(footprint: pcbnew.FOOTPRINT, pose: Located) -> None:
 	set_orientation(footprint, pose.kicad_orientation_deg)
 	footprint.SetPosition(pcbnew.VECTOR2I_MM(pose.x_mm, pose.y_mm))
@@ -288,7 +268,7 @@ def _place_part(footprint: pcbnew.FOOTPRINT, pose: Located) -> None:
 	if _is_through_hole(footprint):
 		_place_top(footprint, pose)
 	else:
-		place_on_bottom(footprint, pose, (0.0, 0.0), 0.0)
+		place_on_bottom(footprint, pose)
 
 
 def _flip_to_bottom(footprint: pcbnew.FOOTPRINT) -> None:
@@ -382,54 +362,11 @@ def _prune(board: pcbnew.BOARD, netlist: Netlist) -> dict[str, pcbnew.FOOTPRINT]
 Placer = Callable[[pcbnew.FOOTPRINT], None]
 
 
-def _encoder_placers(knob: KeyPosition) -> dict[str, Placer]:
-	frame = _shifted(encoder_pose(knob))
-	placers: dict[str, Placer] = {
-		net_ref: partial(
-			place_on_bottom,
-			frame=frame,
-			local=ENCODER_PULLUP_OFFSETS_MM[net],
-			degrees=ENCODER_PULLUP_ORIENTATION_DEG,
-		)
-		for net, net_ref in ENCODER_PULLUP_REFS.items()
+def generated_placers(board_dir: Path, side: Side) -> dict[str, Placer]:
+	poses = {**key_part_poses(board_dir, side), **part_poses(board_dir, side)}
+	return {
+		ref: partial(_place_part, pose=_shifted(pose)) for ref, pose in poses.items()
 	}
-	placers.update(
-		{
-			net_ref: partial(
-				place_on_bottom,
-				frame=frame,
-				local=ENCODER_FILTER_OFFSETS_MM[net],
-				degrees=ENCODER_FILTER_ORIENTATION_DEG,
-			)
-			for net, net_ref in ENCODER_FILTER_REFS.items()
-		}
-	)
-	return placers
-
-
-def generated_placers(
-	netlist: Netlist, positions: list[KeyPosition], board_dir: Path, side: Side
-) -> dict[str, Placer]:
-	by_key = {p.id: p for p in positions}
-	decoupling = sensor_decoupling_refs(side)
-	placers: dict[str, Placer] = {}
-	for component in netlist.components:
-		key = by_key.get(component.fields.get("KEY", ""))
-		if key is None:
-			continue
-		if component.footprint == ENCODER_FOOTPRINT:
-			placers[component.ref] = partial(
-				_place_top, pose=_shifted(encoder_pose(key))
-			)
-			placers.update(_encoder_placers(key))
-		else:
-			placers[component.ref] = partial(place_sensor, key=_shifted(key))
-			placers[decoupling[component.ref]] = partial(
-				place_sensor_cap, key=_shifted(key)
-			)
-	for ref, pose in part_poses(board_dir, side).items():
-		placers[ref] = partial(_place_part, pose=_shifted(pose))
-	return placers
 
 
 def _replace(
@@ -444,12 +381,11 @@ def _replace(
 
 def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	layout_board = load_board(board_dir)
-	spacing = layout_board.layout["spacingMm"]
 	positions = half_positions(layout_board, side)
-	outline = board_outline(positions, spacing_mm=spacing)
+	outline = board_outline(layout_board, side)
 	holes = board_holes(board_dir)[side]
 	netlist = export_netlist(board_dir / "pcb" / side / f"{side}.kicad_sch")
-	placers = generated_placers(netlist, positions, board_dir, side)
+	placers = generated_placers(board_dir, side)
 
 	_configure(board)
 	footprints = _prune(board, netlist)
@@ -474,7 +410,7 @@ def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 
 	switch_index = 0
 	for key in positions:
-		if key.kind == "knob" and side == "left":
+		if key.kind == "knob":
 			continue
 		switch_index += 1
 		switch = _board_only(board, SWITCH_FOOTPRINT, f"K{switch_index}", key.id)

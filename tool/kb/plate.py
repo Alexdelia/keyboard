@@ -10,6 +10,7 @@ from kb.placement import board_holes, button_holes
 
 PlateKind = Literal["plate", "bottom"]
 
+BOARD_THICKNESS_MM = 1.2
 STANDOFF_HEIGHT_MM = 1.30
 STEM_TUBE_PROTRUSION_MM = 2.50
 PEG_PROTRUSION_MM = 1.80
@@ -31,13 +32,13 @@ STROKE_MM = 0.1
 SIDES: tuple[Side, ...] = ("left", "right")
 
 
-def _num(value: float) -> str:
+def num(value: float) -> str:
 	text = f"{value:.4f}".rstrip("0").rstrip(".")
 	return "0" if text in ("-0", "") else text
 
 
 def _outline_path(outline: list[Point]) -> str:
-	points = " L ".join(f"{_num(x)} {_num(y)}" for x, y in outline)
+	points = " L ".join(f"{num(x)} {num(y)}" for x, y in outline)
 	return f'<path d="M {points} Z"/>'
 
 
@@ -46,17 +47,17 @@ def _cutout(key: KeyPosition) -> str:
 	rotation = ""
 	if key.kicad_orientation_deg:
 		rotation = (
-			f' transform="rotate({_num(-key.kicad_orientation_deg)} '
-			f'{_num(key.x_mm)} {_num(key.y_mm)})"'
+			f' transform="rotate({num(-key.kicad_orientation_deg)} '
+			f'{num(key.x_mm)} {num(key.y_mm)})"'
 		)
 	return (
-		f'<rect x="{_num(key.x_mm + x0)}" y="{_num(key.y_mm + y0)}" '
-		f'width="{_num(x1 - x0)}" height="{_num(y1 - y0)}"{rotation}/>'
+		f'<rect x="{num(key.x_mm + x0)}" y="{num(key.y_mm + y0)}" '
+		f'width="{num(x1 - x0)}" height="{num(y1 - y0)}"{rotation}/>'
 	)
 
 
 def _hole(x: float, y: float, diameter: float) -> str:
-	return f'<circle cx="{_num(x)}" cy="{_num(y)}" r="{_num(diameter / 2)}"/>'
+	return f'<circle cx="{num(x)}" cy="{num(y)}" r="{num(diameter / 2)}"/>'
 
 
 def write_plate_svg(
@@ -79,10 +80,10 @@ def write_plate_svg(
 		body += [_hole(x, y, d) for x, y, d in extra_holes]
 	lines = [
 		'<?xml version="1.0" encoding="UTF-8"?>',
-		f'<svg xmlns="http://www.w3.org/2000/svg" width="{_num(width)}mm" '
-		f'height="{_num(height)}mm" viewBox="{_num(min(xs))} {_num(min(ys))} '
-		f'{_num(width)} {_num(height)}">',
-		f'<g fill="none" stroke="#000" stroke-width="{_num(STROKE_MM)}">',
+		f'<svg xmlns="http://www.w3.org/2000/svg" width="{num(width)}mm" '
+		f'height="{num(height)}mm" viewBox="{num(min(xs))} {num(min(ys))} '
+		f'{num(width)} {num(height)}">',
+		f'<g fill="none" stroke="#000" stroke-width="{num(STROKE_MM)}">',
 		*body,
 		"</g>",
 		"</svg>",
@@ -92,12 +93,11 @@ def write_plate_svg(
 
 def generate(board_dir: Path, out_dir: Path) -> None:
 	board = load_board(board_dir)
-	spacing = board.layout["spacingMm"]
 	out_dir.mkdir(parents=True, exist_ok=True)
 	holes = board_holes(board_dir)
 	for side in SIDES:
 		positions = half_positions(board, side)
-		outline = board_outline(positions, spacing_mm=spacing)
+		outline = board_outline(board, side)
 		buttons = button_holes(board_dir, side)
 		for kind in ("plate", "bottom"):
 			write_plate_svg(

@@ -4,7 +4,11 @@ let
 
   treefmtEval = inputs.treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
 
-  python = pkgs.python3.withPackages (ps: [ ps.pytest ]);
+  python = pkgs.python3.withPackages (ps: [
+    ps.numpy
+    ps.pytest
+    ps.shapely
+  ]);
   pcbnewSitePackages = "${pkgs.kicad.base}/${pkgs.python3.sitePackages}";
 
   pre-commit-check = inputs.pre-commit-hooks.lib.${system}.run {

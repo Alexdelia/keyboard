@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="614.3" viewBox="-68 -22.5 136 61.43">
+<style>
+text {font-family:sans-serif;fill:#222}
+.board {fill:#eaf3e6;stroke:#1b1b1b;stroke-width:0.25;stroke-linejoin:round}
+.keycap {fill:#fff;stroke:#c8c8c8;stroke-width:0.1}
+.cutout {fill:none;stroke:#555;stroke-width:0.15}
+.knob {stroke:#d9822b;stroke-width:0.25}
+.shaft {fill:#f6d9b8;stroke:#d9822b;stroke-width:0.15}
+.hole {fill:#fff;stroke:#000;stroke-width:0.15}
+.head {fill:none;stroke:#777;stroke-width:0.1;stroke-dasharray:0.6 0.4}
+.socket {fill:#cfd9ea;stroke:#2b4f8a;stroke-width:0.15}
+.plug {fill:none;stroke:#c0392b;stroke-width:0.15;stroke-dasharray:1 0.6}
+.arrow {fill:none;stroke:#c0392b;stroke-width:0.3}
+.arrowhead {fill:#c0392b;stroke:none}
+.part {fill:none;stroke:#2e7d9a;stroke-width:0.08;stroke-dasharray:0.5 0.3}
+.reference {fill:none;stroke:#777;stroke-width:0.15;stroke-dasharray:1.5 1}
+.radius {fill:none;stroke:#bbb;stroke-width:0.15;stroke-dasharray:2 1}
+.leader {fill:none;stroke:#2e7d9a;stroke-width:0.05}
+.dim {fill:none;stroke:#0a7d3e;stroke-width:0.12}
+.frame {fill:none;stroke:#999;stroke-width:0.15}
+.layer {stroke:#333;stroke-width:0.08}
+.layer-plate {fill:#dbeaf7}
+.layer-pcb {fill:#e6f2e0}
+.layer-part {fill:#cfd9ea}
+.layer-cover {fill:#e9e0f2}
+.layer-stem {fill:#f3e3c4}
+.mark {font-size:1.2px;fill:#666;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.ref {font-size:0.8px;fill:#2e7d9a;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.label {font-size:1.8px;font-weight:bold;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.dim-text {font-size:1.4px;fill:#0a7d3e;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.note {font-size:1.8px}
+.title {font-size:4px;font-weight:bold}
+.legend {font-size:1.8px}
+.bar {stroke:#222;stroke-width:0.3}
+</style>
+<rect id="background" x="-68" y="-22.5" width="136" height="61.43" fill="#fff"/>
+<text id="title" class="title" x="-62" y="-13.5" dy="0.35em" text-anchor="start">icarus layer stack, side cut</text>
+<rect class="layer layer-plate" x="-22" y="-2.5" width="44" height="1.2"/>
+<rect class="layer layer-pcb" x="-22" y="0" width="44" height="1.2"/>
+<rect class="layer layer-part" x="-14.47" y="1.2" width="8.94" height="3.3"/>
+<rect class="layer layer-stem" x="8" y="1.2" width="4" height="2.5"/>
+<rect class="layer layer-cover" x="-22" y="5" width="44" height="1.2"/>
+<rect class="plug" x="-16.2" y="-0.67" width="12.4" height="7"/>
+<polyline class="dim" points="22,-1.9 23.5,-1.9 25,-1.9"/>
+<text class="note" x="26" y="-1.9" dy="0.35em" text-anchor="start">plate 1.2 thick</text>
+<polyline class="dim" points="22,-0.65 23.5,-0.65 25,0.5"/>
+<text class="note" x="26" y="0.5" dy="0.35em" text-anchor="start">plate standoff 1.30</text>
+<polyline class="dim" points="22,0.6 23.5,0.6 25,2.9"/>
+<text class="note" x="26" y="2.9" dy="0.35em" text-anchor="start">PCB 1.2 thick</text>
+<polyline class="dim" points="12,2.45 23.5,2.45 25,5.3"/>
+<text class="note" x="26" y="5.3" dy="0.35em" text-anchor="start">stem tube 2.50</text>
+<polyline class="dim" points="22,3.4 23.5,3.4 25,7.7"/>
+<text class="note" x="26" y="7.7" dy="0.35em" text-anchor="start">bottom standoff 3.80</text>
+<polyline class="dim" points="22,5.6 23.5,5.6 25,10.1"/>
+<text class="note" x="26" y="10.1" dy="0.35em" text-anchor="start">bottom cover 1.2 thick</text>
+<polyline class="dim" points="-16.2,-0.67 -23.5,-0.67 -25,-0.67"/>
+<text class="note" x="-26" y="-0.67" dy="0.35em" text-anchor="end">plug 0.67 above PCB top</text>
+<polyline class="dim" points="-14.47,2.85 -23.5,2.85 -25,2.85"/>
+<text class="note" x="-26" y="2.85" dy="0.35em" text-anchor="end">tallest bottom part usbc 3.30</text>
+<polyline class="dim" points="-16.2,6.33 -23.5,6.33 -25,6.33"/>
+<text class="note" x="-26" y="6.33" dy="0.35em" text-anchor="end">plug 5.13 below PCB bottom</text>
+<text class="note" x="0" y="11.33" dy="0.35em" text-anchor="middle">feet needed: plug hangs 0.13 below the cover</text>
+<rect class="layer layer-plate" x="-62" y="19.33" width="5" height="2.4"/>
+<text class="legend" x="-55.5" y="20.53" dy="0.35em" text-anchor="start">plate</text>
+<rect class="layer layer-pcb" x="-62" y="22.73" width="5" height="2.4"/>
+<text class="legend" x="-55.5" y="23.93" dy="0.35em" text-anchor="start">PCB</text>
+<rect class="layer layer-part" x="-62" y="26.13" width="5" height="2.4"/>
+<text class="legend" x="-55.5" y="27.33" dy="0.35em" text-anchor="start">bottom-side part</text>
+<rect class="layer layer-stem" x="-62" y="29.53" width="5" height="2.4"/>
+<text class="legend" x="-55.5" y="30.73" dy="0.35em" text-anchor="start">switch stem tube</text>
+<rect class="layer layer-cover" x="0" y="19.33" width="5" height="2.4"/>
+<text class="legend" x="6.5" y="20.53" dy="0.35em" text-anchor="start">bottom cover</text>
+<rect class="plug" x="0" y="22.73" width="5" height="2.4"/>
+<text class="legend" x="6.5" y="23.93" dy="0.35em" text-anchor="start">plug outline</text>
+<rect class="dim" x="0" y="26.13" width="5" height="2.4"/>
+<text class="legend" x="6.5" y="27.33" dy="0.35em" text-anchor="start">callout</text>
+<line id="scale-bar" class="bar" x1="-62" y1="35.93" x2="-52" y2="35.93"/>
+<text class="legend" x="-50" y="35.93" dy="0.35em" text-anchor="start">10 mm</text>
+</svg>

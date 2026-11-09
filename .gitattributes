@@ -1,0 +1,2 @@
+keyboard/icarus/drawing/pcb/*.svg -diff linguist-generated
+keyboard/icarus/drawing/schematic/*.svg -diff linguist-generated

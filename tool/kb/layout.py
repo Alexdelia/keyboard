@@ -34,9 +34,16 @@ class Located(Protocol):
 
 
 @dataclass(frozen=True)
+class Pose:
+	x_mm: float
+	y_mm: float
+	kicad_orientation_deg: float
+
+
+@dataclass(frozen=True)
 class Board:
 	layout: dict
-	knob: dict | None
+	config: dict
 
 
 def load_board(board_dir: Path) -> Board:
@@ -44,7 +51,7 @@ def load_board(board_dir: Path) -> Board:
 	layout = json.loads((board_dir / board["layout"]).read_text())
 	if layout.get("format") != SUPPORTED_FORMAT:
 		raise ValueError(f"layout format must be {SUPPORTED_FORMAT}")
-	return Board(layout=layout, knob=board.get("knob"))
+	return Board(layout=layout, config=board)
 
 
 def half_positions(board: Board, side: Side) -> list[KeyPosition]:
@@ -58,6 +65,7 @@ def half_positions(board: Board, side: Side) -> list[KeyPosition]:
 	origin_index = next(
 		i for i, c in enumerate(columns) if c["name"] == layout["originColumn"]
 	)
+	knob = board.config.get("knob")
 
 	positions = []
 	for column_index, column in enumerate(columns):
@@ -65,7 +73,7 @@ def half_positions(board: Board, side: Side) -> list[KeyPosition]:
 			positions.append(
 				KeyPosition(
 					id=f"{row}-{column['name']}",
-					kind=_grid_kind(board.knob, side, row, column["name"]),
+					kind=_grid_kind(knob, side, row, column["name"]),
 					x_mm=sign * (column_index - origin_index) * spacing,
 					y_mm=(row_index - home_index) * spacing + column["offsetMm"],
 					kicad_orientation_deg=0,
@@ -88,7 +96,7 @@ def half_positions(board: Board, side: Side) -> list[KeyPosition]:
 def _grid_kind(knob: dict | None, side: Side, row: str, column: str) -> Kind:
 	is_knob = (
 		knob is not None
-		and knob["side"] == side
+		and side in knob["sides"]
 		and knob["row"] == row
 		and knob["column"] == column
 	)

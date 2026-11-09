@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from kb.layout import Side, half_positions, load_board
 from kb.parts import load_parts
-from kb.schematic import footprints_by_ref, sensor_decoupling_refs
+from kb.schematic import PORT_REFS, footprints_by_ref, sensor_decoupling_refs
 from kb.sexpr import parse
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
@@ -263,10 +263,10 @@ def test_only_test_points_lack_lcsc(netlist: Netlist) -> None:
 	assert all(is_kind(ref, "TP") for ref in lacking)
 
 
-def test_sensor_and_encoder_count(netlist: Netlist, side: Side, parts: dict) -> None:
+def test_sensor_and_encoder_count(netlist: Netlist, parts: dict) -> None:
 	sensors = netlist.with_mpn(parts["sensor"]["mpn"])
 	encoders = netlist.with_mpn(parts["encoder"]["mpn"])
-	assert (len(sensors), len(encoders)) == {"left": (27, 1), "right": (28, 0)}[side]
+	assert (len(sensors), len(encoders)) == (27, 1)
 
 
 def test_sensor_key_fields_follow_layout(
@@ -410,6 +410,11 @@ def test_host_cc_pulldowns(netlist: Netlist, parts: dict) -> None:
 			is_kind(ref, "R") and netlist.components[ref]["value"] == HOST_CC_PULLDOWN
 			for ref in bridges(netlist, cc, "GND")
 		), pin
+
+
+def test_port_refs_follow_vbus(netlist: Netlist, parts: dict) -> None:
+	assert connector_by_net(netlist, parts, "HOST_VBUS_RAW") == PORT_REFS["host"]
+	assert connector_by_net(netlist, parts, "LINK_VBUS") == PORT_REFS["link"]
 
 
 def test_link_protection(netlist: Netlist, parts: dict) -> None:

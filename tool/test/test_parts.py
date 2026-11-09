@@ -29,7 +29,7 @@ def sensor_count() -> int:
 
 
 def test_sensor_count_follows_layout(sensor_count: int) -> None:
-	assert sensor_count == 55
+	assert sensor_count == 54
 
 
 def test_every_part_has_lcsc(parts: dict) -> None:

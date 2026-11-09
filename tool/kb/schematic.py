@@ -117,6 +117,7 @@ ENCODER_PULLUP_REFS = {
 ENCODER_FILTER_REFS = {
 	net: f"C{201 + offset}" for offset, net in enumerate(ENCODER_FILTERED_NETS)
 }
+PORT_REFS = {"host": "J1", "link": "J2"}
 
 
 def mux_net(mux: int, channel: int) -> str:
@@ -302,14 +303,14 @@ def core_sheet(catalog: Catalog) -> Sheet:
 		c.part("crystal", "Y1", {"1": "XIN", "2": "GND", "3": "XTAL_OUT", "4": "GND"}),
 		c.named(
 			"usbc",
-			"J1",
+			PORT_REFS["host"],
 			usb_connector_nets(
 				"HOST_VBUS_RAW", ("HOST_CC1", "HOST_CC2"), "USB_DP_CONN", "USB_DM_CONN"
 			),
 		),
 		c.named(
 			"usbc",
-			"J2",
+			PORT_REFS["link"],
 			usb_connector_nets(
 				"LINK_VBUS", (None, None), "LINK_DP_CONN", "LINK_DM_CONN"
 			),
@@ -367,6 +368,13 @@ def knob_ids(side: Side) -> list[str]:
 	return [p.id for p in half_positions(board, side) if p.kind == "knob"]
 
 
+def encoder_refs(side: Side) -> dict[str, str]:
+	return {
+		key: f"SW{ENCODER_REF_BASE + offset}"
+		for offset, key in enumerate(knob_ids(side))
+	}
+
+
 def sensor_decoupling_refs(side: Side) -> dict[str, str]:
 	return {
 		f"U{SENSOR_REF_BASE + index}": f"C{SENSOR_REF_BASE + index}"
@@ -388,11 +396,11 @@ def root_sheet(catalog: Catalog, side: Side) -> Sheet:
 		)
 		parts.append(c.two_pin("cap_100n_0402", cap, "+3V3", "GND"))
 	parts.append(c.two_pin("res_10k_0402", "R101", "HAND", STRAP_RAIL[side]))
-	for offset, key in enumerate(knob_ids(side)):
+	for key, encoder in encoder_refs(side).items():
 		parts.append(
 			c.part(
 				"encoder",
-				f"SW{ENCODER_REF_BASE + offset}",
+				encoder,
 				{
 					"A": "ENC_A",
 					"B": "ENC_B",

@@ -1,6 +1,5 @@
 {
 	"left": {
-		"J1": { "x": 36.555, "y": -35.213, "rotationDeg": -23.035 },
 		"U1": { "x": 13.0, "y": -39.0, "rotationDeg": 0 },
 		"C13": { "anchor": "U1", "x": 0.3, "y": 6.3, "rotationDeg": 270 },
 		"C4": { "anchor": "U1", "x": 2.0, "y": 6.3, "rotationDeg": 270 },
@@ -109,7 +108,6 @@
 		"C16": { "anchor": "U4", "x": 4.6, "y": 2.4, "rotationDeg": 90 },
 		"U5": { "x": 8.6, "y": 13.0, "rotationDeg": 0 },
 		"C21": { "anchor": "U5", "x": 4.6, "y": 2.4, "rotationDeg": 90 },
-		"J2": { "x": 53.573, "y": 25.126, "rotationDeg": -83.245 },
 		"U7": { "x": 45.817, "y": 26.044, "rotationDeg": -83.245 },
 		"C20": { "x": 53.272, "y": 33.721, "rotationDeg": -83.245 }
 	},

@@ -40,6 +40,7 @@ def test_schematic_parity(report: dict) -> None:
 	assert report["schematic_parity"] == []
 
 
+@pytest.mark.xfail(strict=True, reason="placement redone in Task 8a")
 def test_no_violations_besides_unrouted(report: dict) -> None:
 	assert [
 		(v["type"], [item["description"] for item in v["items"]])

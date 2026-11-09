@@ -11,8 +11,6 @@ from kb.outline import (
 	Point,
 	board_outline,
 	encoder_opening_local,
-	mirror_holes,
-	mounting_holes,
 )
 from kb.parts import load_parts
 from kb.placement import board_holes, button_holes
@@ -36,12 +34,10 @@ def board() -> Board:
 
 @pytest.fixture(scope="module")
 def built(board: Board) -> dict[Side, Half]:
-	left = half_positions(board, "left")
-	left_holes = mounting_holes(left, board_outline(left))
-	right = half_positions(board, "right")
+	holes = board_holes(BOARD_DIR)
 	return {
-		"left": (left, board_outline(left), left_holes),
-		"right": (right, board_outline(right), mirror_holes(left_holes)),
+		side: (half_positions(board, side), board_outline(board, side), holes[side])
+		for side in SIDES
 	}
 
 
@@ -73,7 +69,7 @@ def test_plate_has_cutout_per_key(
 	rects = parse(path).findall(f".//{SVG}rect")
 	assert len(rects) == 28
 	squares = [r for r in rects if number(r, "width") == pytest.approx(14.0)]
-	assert len(squares) == (27 if side == "left" else 28)
+	assert len(squares) == 27
 	for rect in squares:
 		assert number(rect, "height") == pytest.approx(14.0, abs=0.001)
 
@@ -92,16 +88,17 @@ def encoder_pad_extents_from_shaft() -> list[tuple[float, float, float, float]]:
 	return extents
 
 
+@pytest.mark.parametrize("side", SIDES)
 def test_knob_opening_is_encoder_courtyard_around_shaft(
-	built: dict[Side, Half], tmp_path: Path
+	built: dict[Side, Half], side: Side
 ) -> None:
-	positions, outline, holes = build(built, "left")
-	path = tmp_path / "plate.svg"
-	write_plate_svg(path, positions, outline, holes, "plate")
+	positions, _, _ = build(built, side)
 	(knob,) = [k for k in positions if k.kind == "knob"]
 	(opening,) = [
 		r
-		for r in parse(path).findall(f".//{SVG}rect")
+		for r in parse(BOARD_DIR / "plate" / f"{side}-plate.svg").findall(
+			f".//{SVG}rect"
+		)
 		if number(r, "width") != pytest.approx(14.0)
 	]
 	assert number(opening, "width") == pytest.approx(17.0)
@@ -124,9 +121,20 @@ def test_knob_opening_contains_all_encoder_pads() -> None:
 		assert py1 <= y1
 
 
-def test_right_plate_has_no_knob_opening(built: dict[Side, Half]) -> None:
-	positions, _, _ = build(built, "right")
-	assert all(k.kind != "knob" for k in positions)
+@pytest.mark.parametrize("side", SIDES)
+def test_committed_plates_follow_board_outline(board: Board, side: Side) -> None:
+	outline = board_outline(board, side)
+	for kind in ("plate", "bottom"):
+		(path,) = parse(BOARD_DIR / "plate" / f"{side}-{kind}.svg").findall(
+			f".//{SVG}path"
+		)
+		numbers = [
+			float(n) for n in attribute(path, "d").strip("MZ ").replace("L", "").split()
+		]
+		points = list(zip(numbers[::2], numbers[1::2], strict=True))
+		assert len(points) == len(outline)
+		for found, wanted in zip(points, outline, strict=True):
+			assert found == pytest.approx(wanted, abs=1e-4)
 
 
 @pytest.mark.parametrize(("side", "angle"), [("left", 29), ("right", -29)])

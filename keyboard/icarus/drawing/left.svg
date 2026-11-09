@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1101.4735" height="1657.2773" viewBox="-73.175 -98.5505 137.6842 207.1597">
+<style>
+text {font-family:sans-serif;fill:#222}
+.board {fill:#eaf3e6;stroke:#1b1b1b;stroke-width:0.25;stroke-linejoin:round}
+.keycap {fill:#fff;stroke:#c8c8c8;stroke-width:0.1}
+.cutout {fill:none;stroke:#555;stroke-width:0.15}
+.knob {stroke:#d9822b;stroke-width:0.25}
+.shaft {fill:#f6d9b8;stroke:#d9822b;stroke-width:0.15}
+.hole {fill:#fff;stroke:#000;stroke-width:0.15}
+.head {fill:none;stroke:#777;stroke-width:0.1;stroke-dasharray:0.6 0.4}
+.socket {fill:#cfd9ea;stroke:#2b4f8a;stroke-width:0.15}
+.plug {fill:none;stroke:#c0392b;stroke-width:0.15;stroke-dasharray:1 0.6}
+.arrow {fill:none;stroke:#c0392b;stroke-width:0.3}
+.arrowhead {fill:#c0392b;stroke:none}
+.part {fill:none;stroke:#2e7d9a;stroke-width:0.08;stroke-dasharray:0.5 0.3}
+.reference {fill:none;stroke:#777;stroke-width:0.15;stroke-dasharray:1.5 1}
+.radius {fill:none;stroke:#bbb;stroke-width:0.15;stroke-dasharray:2 1}
+.leader {fill:none;stroke:#2e7d9a;stroke-width:0.05}
+.dim {fill:none;stroke:#0a7d3e;stroke-width:0.12}
+.frame {fill:none;stroke:#999;stroke-width:0.15}
+.layer {stroke:#333;stroke-width:0.08}
+.layer-plate {fill:#dbeaf7}
+.layer-pcb {fill:#e6f2e0}
+.layer-part {fill:#cfd9ea}
+.layer-cover {fill:#e9e0f2}
+.layer-stem {fill:#f3e3c4}
+.mark {font-size:1.2px;fill:#666;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.ref {font-size:0.8px;fill:#2e7d9a;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.label {font-size:1.8px;font-weight:bold;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.dim-text {font-size:1.4px;fill:#0a7d3e;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
+.note {font-size:1.8px}
+.title {font-size:4px;font-weight:bold}
+.legend {font-size:1.8px}
+.bar {stroke:#222;stroke-width:0.3}
+</style>
+<rect id="background" x="-73.175" y="-98.5505" width="137.6842" height="207.1597" fill="#fff"/>
+<text id="title" class="title" x="-67.175" y="-89.5505" dy="0.35em" text-anchor="start">icarus left half, top view</text>
+<polygon id="outline" class="board" points="-65.175,-31.625 -65.371,-31.6154 -65.5652,-31.5866 -65.7556,-31.5389 -65.9404,-31.4728 -66.1178,-31.3888 -66.2861,-31.2879 -66.4438,-31.171 -66.5892,-31.0392 -66.721,-30.8938 -66.8379,-30.7361 -66.9388,-30.5678 -67.0228,-30.3904 -67.0889,-30.2056 -67.1366,-30.0152 -67.1654,-29.821 -67.175,-29.625 -67.175,43.575 -67.1654,43.771 -67.1366,43.9652 -67.0889,44.1556 -67.0228,44.3404 -66.9388,44.5178 -66.8379,44.6861 -66.721,44.8438 -66.5892,44.9892 -66.4438,45.121 -66.2861,45.2379 -66.1178,45.3388 -65.9404,45.4228 -65.7556,45.4889 -65.5652,45.5366 -65.371,45.5654 -65.175,45.575 -29.8206,45.575 -29.4248,45.5946 -29.0329,45.6533 -28.6488,45.7505 -28.2761,45.8852 -27.9186,46.0562 -27.5797,46.2616 -27.2629,46.4996 -26.9711,46.7678 -26.7073,47.0635 -26.4741,47.3839 -26.2737,47.7258 -26.1082,48.0858 -25.979,48.4605 -25.8876,48.8461 -23.5947,61.2175 -23.5495,61.4085 -23.4858,61.5942 -23.4042,61.7727 -23.3055,61.9423 -23.1907,62.1015 -23.0608,62.2486 -22.9171,62.3823 -22.761,62.5013 -22.594,62.6044 -22.4177,62.6906 -22.2338,62.7592 -22.044,62.8094 -21.8503,62.8407 -21.6544,62.8529 -21.4582,62.8458 -21.2637,62.8196 -3.2257,59.4764 -2.7583,59.418 -2.2874,59.4149 13.1915,60.2261 13.5734,60.2646 13.9498,60.3395 14.3173,60.4501 29.1307,65.6958 29.4383,65.8193 29.7347,65.9679 47.7586,75.9587 47.9347,76.0453 48.1185,76.1142 48.3081,76.1648 48.5018,76.1966 48.6977,76.2092 48.8938,76.2026 49.0884,76.1767 49.2795,76.1319 49.4653,76.0687 49.644,75.9875 49.8138,75.8891 49.9733,75.7746 50.1207,75.6451 50.2547,75.5017 50.374,75.3458 50.4775,75.179 58.2587,61.1414 58.3453,60.9653 58.4142,60.7815 58.4648,60.5919 58.4966,60.3982 58.5092,60.2023 58.5026,60.0062 58.4767,59.8116 58.4319,59.6205 58.3687,59.4347 58.2875,59.256 58.1891,59.0862 58.0746,58.9267 57.9451,58.7793 57.8017,58.6453 57.6458,58.526 57.479,58.4225 47.2879,52.7735 46.9562,52.5678 46.6461,52.3309 46.3606,52.0648 46.1023,51.7721 45.8738,51.4557 45.6773,51.1186 45.5145,50.7638 45.3871,50.3949 45.2962,50.0154 45.2428,49.6288 45.2273,49.2388 45.2498,48.8492 45.3103,48.4636 45.408,48.0857 45.5421,47.7192 45.7112,47.3675 45.9139,47.0339 46.148,46.7217 46.4115,46.4338 46.7018,46.1729 47.0161,45.9416 47.1479,45.8632 47.3047,45.7596 47.451,45.6418 47.5857,45.5107 47.7075,45.3676 47.8153,45.2136 47.9082,45.0503 47.9853,44.8789 48.046,44.7011 48.0898,44.5183 48.1162,44.3323 48.125,44.1445 48.125,-29.925 48.1154,-30.121 48.0866,-30.3152 48.0389,-30.5056 47.9728,-30.6904 47.8888,-30.8678 47.7879,-31.0361 47.671,-31.1938 47.5392,-31.3392 47.3938,-31.471 47.2361,-31.5879 47.0678,-31.6888 46.8904,-31.7728 46.7056,-31.8389 46.5152,-31.8866 46.321,-31.9154 46.125,-31.925 33.075,-31.925 32.6829,-31.9443 32.2946,-32.0019 31.9139,-32.0972 31.5443,-32.2295 31.1894,-32.3973 30.8527,-32.5991 30.5374,-32.833 30.2466,-33.0966 29.983,-33.3874 29.7491,-33.7027 29.5473,-34.0394 29.3795,-34.3943 29.2472,-34.7639 29.1519,-35.1446 29.0943,-35.5329 29.075,-35.925 29.075,-38.7082 29.064,-38.9173 29.0313,-39.1241 28.9771,-39.3263 25.1995,-50.9526 25.1298,-51.136 25.0424,-51.3118 24.9382,-51.4781 24.8182,-51.6334 24.6836,-51.7762 24.5356,-51.9052 24.3757,-52.019 24.2054,-52.1165 24.0263,-52.197 23.8403,-52.2594 23.649,-52.3034 23.4543,-52.3284 23.2581,-52.3341 23.0623,-52.3207 22.8688,-52.2881 22.6794,-52.2366 10.6275,-48.3208 10.2231,-48.2124 9.8096,-48.1469 9.3915,-48.125 -8.025,-48.125 -8.221,-48.1154 -8.4152,-48.0866 -8.6056,-48.0389 -8.7904,-47.9728 -8.9678,-47.8888 -9.1361,-47.7879 -9.2938,-47.671 -9.4392,-47.5392 -9.571,-47.3938 -9.6879,-47.2361 -9.7888,-47.0678 -9.8728,-46.8904 -9.9389,-46.7056 -9.9866,-46.5152 -10.0154,-46.321 -10.025,-46.125 -10.025,-44.925 -10.0443,-44.5329 -10.1019,-44.1446 -10.1972,-43.7639 -10.3295,-43.3943 -10.4973,-43.0394 -10.6991,-42.7027 -10.933,-42.3874 -11.1966,-42.0966 -11.4874,-41.833 -11.8027,-41.5991 -12.1394,-41.3973 -12.4943,-41.2295 -12.8639,-41.0972 -13.2446,-41.0019 -13.6329,-40.9443 -14.025,-40.925 -27.4181,-40.925 -27.8102,-40.9443 -28.1985,-41.0019 -28.5793,-41.0972 -28.9489,-41.2295 -28.9946,-41.2511 -29.1689,-41.3237 -29.3492,-41.3795 -29.5339,-41.418 -29.7215,-41.439 -29.9102,-41.4422 -30.0983,-41.4276 -30.2843,-41.3954 -30.4663,-41.3457 -30.6429,-41.2791 -30.8125,-41.1962 -30.9734,-41.0976 -31.1244,-40.9844 -31.264,-40.8574 -39.3247,-32.7966 -39.6156,-32.533 -39.9309,-32.2991 -40.2676,-32.0973 -40.6224,-31.9295 -40.992,-31.7972 -41.3728,-31.7019 -41.7611,-31.6443 -42.1532,-31.625"/>
+<polygon class="keycap" points="-66.175,-30.625 -48.125,-30.625 -48.125,-12.575 -66.175,-12.575"/>
+<polygon class="keycap" points="-66.175,-11.575 -48.125,-11.575 -48.125,6.475 -66.175,6.475"/>
+<polygon class="keycap" points="-66.175,7.475 -48.125,7.475 -48.125,25.525 -66.175,25.525"/>
+<polygon class="keycap" points="-66.175,26.525 -48.125,26.525 -48.125,44.575 -66.175,44.575"/>
+<polygon class="keycap" points="-47.125,-30.625 -29.075,-30.625 -29.075,-12.575 -47.125,-12.575"/>
+<polygon class="keycap" points="-47.125,-11.575 -29.075,-11.575 -29.075,6.475 -47.125,6.475"/>
+<polygon class="keycap" points="-47.125,7.475 -29.075,7.475 -29.075,25.525 -47.125,25.525"/>
+<polygon class="keycap" points="-47.125,26.525 -29.075,26.525 -29.075,44.575 -47.125,44.575"/>
+<polygon class="keycap" points="-28.075,-39.925 -10.025,-39.925 -10.025,-21.875 -28.075,-21.875"/>
+<polygon class="keycap" points="-28.075,-20.875 -10.025,-20.875 -10.025,-2.825 -28.075,-2.825"/>
+<polygon class="keycap" points="-28.075,-1.825 -10.025,-1.825 -10.025,16.225 -28.075,16.225"/>
+<polygon class="keycap" points="-28.075,17.225 -10.025,17.225 -10.025,35.275 -28.075,35.275"/>
+<polygon class="keycap" points="-9.025,-47.125 9.025,-47.125 9.025,-29.075 -9.025,-29.075"/>
+<polygon class="keycap" points="-9.025,-28.075 9.025,-28.075 9.025,-10.025 -9.025,-10.025"/>
+<polygon class="keycap" points="-9.025,-9.025 9.025,-9.025 9.025,9.025 -9.025,9.025"/>
+<polygon class="keycap" points="-9.025,10.025 9.025,10.025 9.025,28.075 -9.025,28.075"/>
+<polygon class="keycap" points="10.025,-38.025 28.075,-38.025 28.075,-19.975 10.025,-19.975"/>
+<polygon class="keycap" points="10.025,-18.975 28.075,-18.975 28.075,-0.925 10.025,-0.925"/>
+<polygon class="keycap" points="10.025,0.075 28.075,0.075 28.075,18.125 10.025,18.125"/>
+<polygon class="keycap" points="10.025,19.125 28.075,19.125 28.075,37.175 10.025,37.175"/>
+<polygon class="keycap" points="29.075,-30.925 47.125,-30.925 47.125,-12.875 29.075,-12.875"/>
+<polygon class="keycap" points="29.075,-11.875 47.125,-11.875 47.125,6.175 29.075,6.175"/>
+<polygon class="keycap" points="29.075,7.175 47.125,7.175 47.125,25.225 29.075,25.225"/>
+<polygon class="keycap" points="29.075,26.225 47.125,26.225 47.125,44.275 29.075,44.275"/>
+<polygon class="keycap" points="-25.7186,44.2708 -7.9708,40.9814 -4.6814,58.7292 -22.4292,62.0186"/>
+<polygon class="keycap" points="-2.7403,40.315 15.285,41.2597 14.3403,59.285 -3.685,58.3403"/>
+<polygon class="keycap" points="21.2053,42.6801 38.2199,48.7053 32.1947,65.7199 15.1801,59.6947"/>
+<polygon class="keycap" points="42.082,51.0312 57.8688,59.782 49.118,75.5688 33.3312,66.818"/>
+<polygon id="cutout-number-pinkyOuter" class="cutout knob" points="-65.9,-29.75 -48.9,-29.75 -48.9,-13.45 -65.9,-13.45"/>
+<circle id="shaft" class="shaft" cx="-57.15" cy="-21.6" r="3"/>
+<polygon id="cutout-top-pinkyOuter" class="cutout" points="-64.15,-9.55 -50.15,-9.55 -50.15,4.45 -64.15,4.45"/>
+<polygon id="cutout-home-pinkyOuter" class="cutout" points="-64.15,9.5 -50.15,9.5 -50.15,23.5 -64.15,23.5"/>
+<polygon id="cutout-bottom-pinkyOuter" class="cutout" points="-64.15,28.55 -50.15,28.55 -50.15,42.55 -64.15,42.55"/>
+<polygon id="cutout-number-pinky" class="cutout" points="-45.1,-28.6 -31.1,-28.6 -31.1,-14.6 -45.1,-14.6"/>
+<polygon id="cutout-top-pinky" class="cutout" points="-45.1,-9.55 -31.1,-9.55 -31.1,4.45 -45.1,4.45"/>
+<polygon id="cutout-home-pinky" class="cutout" points="-45.1,9.5 -31.1,9.5 -31.1,23.5 -45.1,23.5"/>
+<polygon id="cutout-bottom-pinky" class="cutout" points="-45.1,28.55 -31.1,28.55 -31.1,42.55 -45.1,42.55"/>
+<polygon id="cutout-number-ring" class="cutout" points="-26.05,-37.9 -12.05,-37.9 -12.05,-23.9 -26.05,-23.9"/>
+<polygon id="cutout-top-ring" class="cutout" points="-26.05,-18.85 -12.05,-18.85 -12.05,-4.85 -26.05,-4.85"/>
+<polygon id="cutout-home-ring" class="cutout" points="-26.05,0.2 -12.05,0.2 -12.05,14.2 -26.05,14.2"/>
+<polygon id="cutout-bottom-ring" class="cutout" points="-26.05,19.25 -12.05,19.25 -12.05,33.25 -26.05,33.25"/>
+<polygon id="cutout-number-middle" class="cutout" points="-7,-45.1 7,-45.1 7,-31.1 -7,-31.1"/>
+<polygon id="cutout-top-middle" class="cutout" points="-7,-26.05 7,-26.05 7,-12.05 -7,-12.05"/>
+<polygon id="cutout-home-middle" class="cutout" points="-7,-7 7,-7 7,7 -7,7"/>
+<polygon id="cutout-bottom-middle" class="cutout" points="-7,12.05 7,12.05 7,26.05 -7,26.05"/>
+<polygon id="cutout-number-index" class="cutout" points="12.05,-36 26.05,-36 26.05,-22 12.05,-22"/>
+<polygon id="cutout-top-index" class="cutout" points="12.05,-16.95 26.05,-16.95 26.05,-2.95 12.05,-2.95"/>
+<polygon id="cutout-home-index" class="cutout" points="12.05,2.1 26.05,2.1 26.05,16.1 12.05,16.1"/>
+<polygon id="cutout-bottom-index" class="cutout" points="12.05,21.15 26.05,21.15 26.05,35.15 12.05,35.15"/>
+<polygon id="cutout-number-indexInner" class="cutout" points="31.1,-28.9 45.1,-28.9 45.1,-14.9 31.1,-14.9"/>
+<polygon id="cutout-top-indexInner" class="cutout" points="31.1,-9.85 45.1,-9.85 45.1,4.15 31.1,4.15"/>
+<polygon id="cutout-home-indexInner" class="cutout" points="31.1,9.2 45.1,9.2 45.1,23.2 31.1,23.2"/>
+<polygon id="cutout-bottom-indexInner" class="cutout" points="31.1,28.25 45.1,28.25 45.1,42.25 31.1,42.25"/>
+<polygon id="cutout-thumb0" class="cutout" points="-23.3584,45.8929 -9.5929,43.3416 -7.0416,57.1071 -20.8071,59.6584"/>
+<polygon id="cutout-thumb1" class="cutout" points="-0.8241,42.4432 13.1568,43.1759 12.4241,57.1568 -1.5568,56.4241"/>
+<polygon id="cutout-thumb2" class="cutout" points="22.4382,45.2649 35.6351,49.9382 30.9618,63.1351 17.7649,58.4618"/>
+<polygon id="cutout-thumb3" class="cutout" points="42.8713,53.784 55.116,60.5713 48.3287,72.816 36.084,66.0287"/>
+<text class="mark" x="-57.15" y="-30.1875" dy="0.35em" text-anchor="middle">number-pinkyOuter</text>
+<text class="mark" x="-57.15" y="-10.5625" dy="0.35em" text-anchor="middle">top-pinkyOuter</text>
+<text class="mark" x="-57.15" y="8.4875" dy="0.35em" text-anchor="middle">home-pinkyOuter</text>
+<text class="mark" x="-57.15" y="27.5375" dy="0.35em" text-anchor="middle">bottom-pinkyOuter</text>
+<text class="mark" x="-38.1" y="-29.6125" dy="0.35em" text-anchor="middle">number-pinky</text>
+<text class="mark" x="-38.1" y="-10.5625" dy="0.35em" text-anchor="middle">top-pinky</text>
+<text class="mark" x="-38.1" y="8.4875" dy="0.35em" text-anchor="middle">home-pinky</text>
+<text class="mark" x="-38.1" y="27.5375" dy="0.35em" text-anchor="middle">bottom-pinky</text>
+<text class="mark" x="-19.05" y="-38.9125" dy="0.35em" text-anchor="middle">number-ring</text>
+<text class="mark" x="-19.05" y="-19.8625" dy="0.35em" text-anchor="middle">top-ring</text>
+<text class="mark" x="-19.05" y="-0.8125" dy="0.35em" text-anchor="middle">home-ring</text>
+<text class="mark" x="-19.05" y="18.2375" dy="0.35em" text-anchor="middle">bottom-ring</text>
+<text class="mark" x="0" y="-46.1125" dy="0.35em" text-anchor="middle">number-middle</text>
+<text class="mark" x="0" y="-27.0625" dy="0.35em" text-anchor="middle">top-middle</text>
+<text class="mark" x="0" y="-8.0125" dy="0.35em" text-anchor="middle">home-middle</text>
+<text class="mark" x="0" y="11.0375" dy="0.35em" text-anchor="middle">bottom-middle</text>
+<text class="mark" x="19.05" y="-37.0125" dy="0.35em" text-anchor="middle">number-index</text>
+<text class="mark" x="19.05" y="-17.9625" dy="0.35em" text-anchor="middle">top-index</text>
+<text class="mark" x="19.05" y="1.0875" dy="0.35em" text-anchor="middle">home-index</text>
+<text class="mark" x="19.05" y="20.1375" dy="0.35em" text-anchor="middle">bottom-index</text>
+<text class="mark" x="38.1" y="-29.9125" dy="0.35em" text-anchor="middle">number-indexInner</text>
+<text class="mark" x="38.1" y="-10.8625" dy="0.35em" text-anchor="middle">top-indexInner</text>
+<text class="mark" x="38.1" y="8.1875" dy="0.35em" text-anchor="middle">home-indexInner</text>
+<text class="mark" x="38.1" y="27.2375" dy="0.35em" text-anchor="middle">bottom-indexInner</text>
+<text class="mark" x="-16.6602" y="43.6217" dy="0.35em" text-anchor="middle">thumb0</text>
+<text class="mark" x="6.2193" y="41.7985" dy="0.35em" text-anchor="middle">thumb1</text>
+<text class="mark" x="29.3746" y="46.6471" dy="0.35em" text-anchor="middle">thumb2</text>
+<text class="mark" x="49.4845" y="56.2921" dy="0.35em" text-anchor="middle">thumb3</text>
+<polygon id="part-U1" class="part" points="8.87,-34.87 17.13,-34.87 17.13,-43.13 8.87,-43.13"/>
+<polygon id="part-C13" class="part" points="12.84,-33.61 12.84,-31.79 13.76,-31.79 13.76,-33.61"/>
+<polygon id="part-C4" class="part" points="14.54,-33.61 14.54,-31.79 15.46,-31.79 15.46,-33.61"/>
+<polygon id="part-C3" class="part" points="16.24,-33.61 16.24,-31.79 17.16,-31.79 17.16,-33.61"/>
+<polygon id="part-C12" class="part" points="11.14,-33.61 11.14,-31.79 12.06,-31.79 12.06,-33.61"/>
+<polygon id="part-C14" class="part" points="18.39,-35.94 20.21,-35.94 20.21,-36.86 18.39,-36.86"/>
+<polygon id="part-C8" class="part" points="18.39,-39.54 20.21,-39.54 20.21,-40.46 18.39,-40.46"/>
+<polygon id="part-C10" class="part" points="18.39,-41.94 20.21,-41.94 20.21,-42.86 18.39,-42.86"/>
+<polygon id="part-C5" class="part" points="7.46,-35.69 7.46,-37.51 6.54,-37.51 6.54,-35.69"/>
+<polygon id="part-C6" class="part" points="7.61,-40.46 5.79,-40.46 5.79,-39.54 7.61,-39.54"/>
+<polygon id="part-R101" class="part" points="5.77,-41.93 7.63,-41.93 7.63,-42.87 5.77,-42.87"/>
+<polygon id="part-U2" class="part" points="10.25,-28.37 10.25,-32.63 7.75,-32.63 7.75,-28.37"/>
+<polygon id="part-C15" class="part" points="6.86,-29.59 6.86,-31.41 5.94,-31.41 5.94,-29.59"/>
+<polygon id="part-R8" class="part" points="6.87,-26.92 6.87,-28.78 5.93,-28.78 5.93,-26.92"/>
+<polygon id="part-R5" class="part" points="11.62,-24.57 11.62,-26.43 10.68,-26.43 10.68,-24.57"/>
+<polygon id="part-R6" class="part" points="13.32,-24.57 13.32,-26.43 12.38,-26.43 12.38,-24.57"/>
+<polygon id="part-Y1" class="part" points="13.5,-47.7 9.3,-47.7 9.3,-44.2 13.5,-44.2"/>
+<polygon id="part-C7" class="part" points="15.01,-44.39 15.01,-46.21 14.09,-46.21 14.09,-44.39"/>
+<polygon id="part-C11" class="part" points="16.71,-44.29 16.71,-46.11 15.79,-46.11 15.79,-44.29"/>
+<polygon id="part-R9" class="part" points="18.37,-44.13 20.23,-44.13 20.23,-45.07 18.37,-45.07"/>
+<polygon id="part-TP1" class="part" points="2.4,-46.4 4.4,-46.4 4.4,-48.4 2.4,-48.4"/>
+<polygon id="part-TP2" class="part" points="2.4,-44.2 4.4,-44.2 4.4,-46.2 2.4,-46.2"/>
+<polygon id="part-TP3" class="part" points="2.4,-42 4.4,-42 4.4,-44 2.4,-44"/>
+<polygon id="part-C18" class="part" points="8.71,-46.86 6.89,-46.86 6.89,-45.94 8.71,-45.94"/>
+<polygon id="part-C17" class="part" points="8.71,-44.86 6.89,-44.86 6.89,-43.94 8.71,-43.94"/>
+<polygon id="part-R7" class="part" points="6.07,-44.47 6.07,-46.33 5.13,-46.33 5.13,-44.47"/>
+<polygon id="part-R3" class="part" points="-37.303,-20.5772 -35.9877,-21.8924 -36.6524,-22.5571 -37.9676,-21.2419"/>
+<polygon id="part-R4" class="part" points="-36.1716,-19.4459 -34.8564,-20.7611 -35.5211,-21.4258 -36.8363,-20.1105"/>
+<polygon id="part-U6" class="part" points="-33.3361,-24.5724 -36.2352,-27.4715 -38.6394,-25.0674 -35.7403,-22.1682"/>
+<polygon id="part-R1" class="part" points="-25.2821,-24.537 -23.9669,-25.8522 -24.6316,-26.5169 -25.9468,-25.2017"/>
+<polygon id="part-R2" class="part" points="-24.3629,-23.6178 -23.0477,-24.933 -23.7124,-25.5977 -25.0276,-24.2825"/>
+<polygon id="part-F1" class="part" points="-27.7075,-24.7845 -30.9319,-28.0089 -32.53,-26.4109 -29.3056,-23.1865"/>
+<polygon id="part-C19" class="part" points="-27.0287,-25.9866 -28.3156,-27.2735 -28.9662,-26.623 -27.6792,-25.3361"/>
+<polygon id="part-D1" class="part" points="-24.8155,-31.5374 -21.4921,-34.8608 -23.1184,-36.4871 -26.4418,-33.1637"/>
+<polygon id="part-D3" class="part" points="-26.4418,-25.9512 -23.1184,-29.2746 -24.7447,-30.901 -28.0681,-27.5776"/>
+<polygon id="part-D2" class="part" points="-20.0778,-37.4064 -23.4012,-40.7298 -25.0276,-39.1034 -21.7042,-35.78"/>
+<polygon id="part-U3" class="part" points="24.3253,-24.2117 28.0983,-22.6074 29.4287,-25.7363 25.6557,-27.3406"/>
+<polygon id="part-C1" class="part" points="23.9219,-22.9054 25.5968,-22.1932 25.9568,-23.0398 24.2819,-23.752"/>
+<polygon id="part-C2" class="part" points="25.9465,-22.0445 27.6214,-21.3324 27.9814,-22.179 26.3065,-22.8912"/>
+<polygon id="part-C9" class="part" points="27.9711,-21.1837 29.646,-20.4715 30.006,-21.3182 28.3311,-22.0303"/>
+<polygon id="part-R10" class="part" points="6.87,-32.67 6.87,-34.53 5.93,-34.53 5.93,-32.67"/>
+<polygon id="part-R11" class="part" points="5.17,-32.67 5.17,-34.53 4.23,-34.53 4.23,-32.67"/>
+<polygon id="part-SW1" class="part" points="-26.25,-38.2 -18.75,-38.2 -18.75,-43.8 -26.25,-43.8"/>
+<polygon id="part-SW2" class="part" points="-18.25,-40.2 -10.75,-40.2 -10.75,-45.8 -18.25,-45.8"/>
+<polygon id="part-U4" class="part" points="-13.35,17.15 -5.65,17.15 -5.65,8.85 -13.35,8.85"/>
+<polygon id="part-C16" class="part" points="-4.44,16.31 -4.44,14.49 -5.36,14.49 -5.36,16.31"/>
+<polygon id="part-U5" class="part" points="4.75,17.15 12.45,17.15 12.45,8.85 4.75,8.85"/>
+<polygon id="part-C21" class="part" points="13.66,16.31 13.66,14.49 12.74,14.49 12.74,16.31"/>
+<polygon id="part-U7" class="part" points="43.8877,24.2082 44.3699,28.2797 47.7463,27.8798 47.2641,23.8083"/>
+<polygon id="part-C20" class="part" points="52.7082,32.8714 52.9222,34.6788 53.8358,34.5706 53.6218,32.7632"/>
+<text class="ref" x="13" y="-39" dy="0.35em" text-anchor="middle">U1</text>
+<text class="ref" x="-9.5" y="13" dy="0.35em" text-anchor="middle">U4</text>
+<text class="ref" x="8.6" y="13" dy="0.35em" text-anchor="middle">U5</text>
+<text class="ref" x="-22.5" y="-41" dy="0.35em" text-anchor="middle">SW1</text>
+<text class="ref" x="-14.5" y="-43" dy="0.35em" text-anchor="middle">SW2</text>
+<text class="ref" x="11.4" y="-45.95" dy="0.35em" text-anchor="middle">Y1</text>
+<text class="ref" x="45.817" y="26.044" dy="0.35em" text-anchor="middle">U7</text>
+<text class="ref" x="26.877" y="-24.974" dy="0.35em" text-anchor="middle">U3</text>
+<text class="ref" x="-35.9877" y="-24.8199" dy="0.35em" text-anchor="middle">U6</text>
+<text class="ref" x="-23.9669" y="-34.0123" dy="0.35em" text-anchor="middle">D1</text>
+<text class="ref" x="-25.5933" y="-28.4261" dy="0.35em" text-anchor="middle">D3</text>
+<line class="leader" x1="-22.5527" y1="-38.2549" x2="-22.5527" y2="-37.2549"/>
+<text class="ref" x="-22.5527" y="-37.2549" dy="0.35em" text-anchor="middle">D2</text>
+<text class="ref" x="9" y="-30.5" dy="0.35em" text-anchor="middle">U2</text>
+<text class="ref" x="-30.1188" y="-25.5977" dy="0.35em" text-anchor="middle">F1</text>
+<text class="ref" x="3.4" y="-47.9" dy="0.35em" text-anchor="middle">TP1</text>
+<text class="ref" x="3.4" y="-44.7" dy="0.35em" text-anchor="middle">TP2</text>
+<text class="ref" x="3.4" y="-43" dy="0.35em" text-anchor="middle">TP3</text>
+<text class="ref" x="11.15" y="-25.5" dy="0.35em" text-anchor="middle">R5</text>
+<text class="ref" x="12.85" y="-25.5" dy="0.35em" text-anchor="middle">R6</text>
+<text class="ref" x="6.4" y="-33.6" dy="0.35em" text-anchor="middle">R10</text>
+<text class="ref" x="4.7" y="-33.6" dy="0.35em" text-anchor="middle">R11</text>
+<text class="ref" x="5.6" y="-45.4" dy="0.35em" text-anchor="middle">R7</text>
+<text class="ref" x="6.4" y="-27.85" dy="0.35em" text-anchor="middle">R8</text>
+<text class="ref" x="6.7" y="-42.4" dy="0.35em" text-anchor="middle">R101</text>
+<text class="ref" x="19.3" y="-44.6" dy="0.35em" text-anchor="middle">R9</text>
+<text class="ref" x="-24.9569" y="-25.527" dy="0.35em" text-anchor="middle">R1</text>
+<text class="ref" x="-23.5376" y="-24.6077" dy="0.35em" text-anchor="middle">R2</text>
+<text class="ref" x="-36.9777" y="-21.5672" dy="0.35em" text-anchor="middle">R3</text>
+<text class="ref" x="-35.8463" y="-20.4358" dy="0.35em" text-anchor="middle">R4</text>
+<text class="ref" x="19.3" y="-42.4" dy="0.35em" text-anchor="middle">C10</text>
+<line class="leader" x1="19.3" y1="-36.4" x2="19.3" y2="-35.4"/>
+<text class="ref" x="19.3" y="-35.4" dy="0.35em" text-anchor="middle">C14</text>
+<text class="ref" x="-27.9974" y="-26.3048" dy="0.35em" text-anchor="middle">C19</text>
+<text class="ref" x="6.7" y="-40" dy="0.35em" text-anchor="middle">C6</text>
+<text class="ref" x="19.3" y="-40" dy="0.35em" text-anchor="middle">C8</text>
+<text class="ref" x="7.8" y="-44.4" dy="0.35em" text-anchor="middle">C17</text>
+<text class="ref" x="7.8" y="-46.4" dy="0.35em" text-anchor="middle">C18</text>
+<text class="ref" x="13.2" y="15.4" dy="0.35em" text-anchor="middle">C21</text>
+<text class="ref" x="11.6" y="-32.7" dy="0.35em" text-anchor="middle">C12</text>
+<text class="ref" x="13.3" y="-32.7" dy="0.35em" text-anchor="middle">C13</text>
+<text class="ref" x="6.4" y="-30.5" dy="0.35em" text-anchor="middle">C15</text>
+<text class="ref" x="16.7" y="-32.7" dy="0.35em" text-anchor="middle">C3</text>
+<text class="ref" x="15" y="-32.7" dy="0.35em" text-anchor="middle">C4</text>
+<text class="ref" x="53.272" y="33.721" dy="0.35em" text-anchor="middle">C20</text>
+<text class="ref" x="-4.9" y="15.4" dy="0.35em" text-anchor="middle">C16</text>
+<text class="ref" x="16.25" y="-45.2" dy="0.35em" text-anchor="middle">C11</text>
+<text class="ref" x="14.55" y="-45.3" dy="0.35em" text-anchor="middle">C7</text>
+<text class="ref" x="24.9394" y="-22.9726" dy="0.35em" text-anchor="middle">C1</text>
+<text class="ref" x="26.964" y="-22.1118" dy="0.35em" text-anchor="middle">C2</text>
+<text class="ref" x="28.9885" y="-21.2509" dy="0.35em" text-anchor="middle">C9</text>
+<text class="ref" x="7" y="-36.6" dy="0.35em" text-anchor="middle">C5</text>
+<polygon id="socket-host" class="socket" points="-33.1098,-29.3383 -26.7883,-35.6598 -31.9502,-40.8217 -38.2717,-34.5002"/>
+<polygon id="plug-host" class="plug" points="-39.495,-33.2769 -30.7269,-42.045 -48.4045,-59.7227 -57.1727,-50.9545"/>
+<line id="arrow-host" class="arrow" x1="-34.7857" y1="-37.3357" x2="-41.5032" y2="-44.0532"/>
+<polygon class="arrowhead" points="-43.2709,-45.8209 -40.8668,-44.6896 -42.1396,-43.4168"/>
+<polygon id="socket-link" class="socket" points="16.5474,-43.0522 25.0498,-45.8149 22.794,-52.7576 14.2915,-49.995"/>
+<polygon id="plug-link" class="plug" points="12.6462,-49.4604 24.4393,-53.2922 16.7139,-77.0686 4.9208,-73.2368"/>
+<line id="arrow-link" class="arrow" x1="18.6849" y1="-50.9388" x2="15.7493" y2="-59.9738"/>
+<polygon class="arrowhead" points="14.9767,-62.3515 16.6052,-60.2519 14.8933,-59.6957"/>
+<circle id="head-0" class="head" cx="-47.625" cy="6.975" r="1.9"/>
+<circle id="hole-0" class="hole" cx="-47.625" cy="6.975" r="1.1"/>
+<circle id="head-1" class="head" cx="-47.625" cy="26.025" r="1.9"/>
+<circle id="hole-1" class="hole" cx="-47.625" cy="26.025" r="1.1"/>
+<circle id="head-2" class="head" cx="16.68" cy="49.88" r="1.9"/>
+<circle id="hole-2" class="hole" cx="16.68" cy="49.88" r="1.1"/>
+<circle id="head-3" class="head" cx="8.894" cy="-9.525" r="1.9"/>
+<circle id="hole-3" class="hole" cx="8.894" cy="-9.525" r="1.1"/>
+<circle id="head-4" class="head" cx="27.944" cy="18.625" r="1.9"/>
+<circle id="hole-4" class="hole" cx="27.944" cy="18.625" r="1.1"/>
+<circle id="head-5" class="head" cx="-27.944" cy="-21.375" r="1.9"/>
+<circle id="hole-5" class="hole" cx="-27.944" cy="-21.375" r="1.1"/>
+<text id="label-host" class="label" x="-55.9989" y="-58.5489" dy="0.35em" text-anchor="middle">computer J1</text>
+<text id="label-link" class="label" x="9.4144" y="-79.4705" dy="0.35em" text-anchor="middle">link J2</text>
+<rect class="board" x="-67.175" y="82.2092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="83.4092" dy="0.35em" text-anchor="start">board outline</text>
+<rect class="keycap" x="-67.175" y="85.6092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="86.8092" dy="0.35em" text-anchor="start">keycap</text>
+<rect class="cutout" x="-67.175" y="89.0092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="90.2092" dy="0.35em" text-anchor="start">plate cutout</text>
+<rect class="cutout knob" x="-67.175" y="92.4092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="93.6092" dy="0.35em" text-anchor="start">encoder opening</text>
+<rect class="socket" x="-67.175" y="95.8092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="97.0092" dy="0.35em" text-anchor="start">USB-C socket body</text>
+<rect class="plug" x="-67.175" y="99.2092" width="5" height="2.4"/>
+<text class="legend" x="-60.675" y="100.4092" dy="0.35em" text-anchor="start">plug ghost</text>
+<rect class="arrow" x="-4.3329" y="82.2092" width="5" height="2.4"/>
+<text class="legend" x="2.1671" y="83.4092" dy="0.35em" text-anchor="start">port aim</text>
+<rect class="head" x="-4.3329" y="85.6092" width="5" height="2.4"/>
+<text class="legend" x="2.1671" y="86.8092" dy="0.35em" text-anchor="start">screw head</text>
+<rect class="hole" x="-4.3329" y="89.0092" width="5" height="2.4"/>
+<text class="legend" x="2.1671" y="90.2092" dy="0.35em" text-anchor="start">screw hole</text>
+<rect class="part" x="-4.3329" y="92.4092" width="5" height="2.4"/>
+<text class="legend" x="2.1671" y="93.6092" dy="0.35em" text-anchor="start">part courtyard</text>
+<rect class="leader" x="-4.3329" y="95.8092" width="5" height="2.4"/>
+<text class="legend" x="2.1671" y="97.0092" dy="0.35em" text-anchor="start">label leader</text>
+<line id="scale-bar" class="bar" x1="-67.175" y1="105.6092" x2="-57.175" y2="105.6092"/>
+<text class="legend" x="-55.175" y="105.6092" dy="0.35em" text-anchor="start">10 mm</text>
+</svg>

@@ -26,13 +26,19 @@ def test_counts(board: Board) -> None:
 	left = Counter(p.kind for p in half_positions(board, "left"))
 	right = Counter(p.kind for p in half_positions(board, "right"))
 	assert left == {"key": 23, "thumb": 4, "knob": 1}
-	assert right == {"key": 24, "thumb": 4}
+	assert right == {"key": 23, "thumb": 4, "knob": 1}
 
 
 def test_left_knob(board: Board) -> None:
 	knob = by_id(half_positions(board, "left"), "number-pinkyOuter")
 	assert knob.kind == "knob"
 	assert_at(knob, -57.15, -21.6, 0)
+
+
+def test_right_knob(board: Board) -> None:
+	knob = by_id(half_positions(board, "right"), "number-pinkyOuter")
+	assert knob.kind == "knob"
+	assert_at(knob, 57.15, -21.6, 0)
 
 
 def test_left_grid(board: Board) -> None:
@@ -68,4 +74,4 @@ def test_board_without_knob(tmp_path: Path) -> None:
 	(tmp_path / "board.json").write_text('{"layout": "layout.json"}')
 	loaded = load_board(tmp_path)
 	assert isinstance(loaded, Board)
-	assert loaded.knob is None
+	assert "knob" not in loaded.config

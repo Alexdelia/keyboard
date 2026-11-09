@@ -1,6 +1,10 @@
 {
 	"layout": "layout.json",
-	"knob": { "side": "left", "row": "number", "column": "pinkyOuter" },
+	"knob": {
+		"sides": ["left", "right"],
+		"row": "number",
+		"column": "pinkyOuter"
+	},
 	"outline": {
 		"keycapMarginMm": 1.0,
 		"innerCornerRadiusMm": 4.0,
@@ -29,7 +33,7 @@
 	},
 	"plug": { "widthMm": 12.4, "clearanceMm": 1.0 },
 	"mounting": {
-		"at": "fourKeycapCorners",
+		"at": "keycapJunctionsAndThumb",
 		"holeDiameterMm": 2.2,
 		"screw": "M2 wafer head",
 		"maxHeadHeightMm": 0.8
