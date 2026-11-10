@@ -374,7 +374,6 @@ def inside_with_clearance(point: Point, outline: list[Point]) -> bool:
 	)
 
 
-@pytest.mark.xfail(strict=True, reason="placement redone in Task 8a")
 def test_parts_inside_outline(board: pcbnew.BOARD, outline: list[Point]) -> None:
 	for footprint in parts(board):
 		if footprint.GetFPIDAsString() == USB_FOOTPRINT:
@@ -439,7 +438,6 @@ def switch_holes(board: pcbnew.BOARD) -> list[pcbnew.PAD]:
 	return [pad for switch in with_id(board, SWITCH_FOOTPRINT) for pad in switch.Pads()]
 
 
-@pytest.mark.xfail(strict=True, reason="placement redone in Task 8a")
 def test_parts_clear_of_switch_holes(board: pcbnew.BOARD) -> None:
 	holes = switch_holes(board)
 	assert holes
@@ -550,7 +548,6 @@ def test_holes_clear_of_key_derived_parts(board: pcbnew.BOARD, side: Side) -> No
 			), footprint.GetReference()
 
 
-@pytest.mark.xfail(strict=True, reason="placement redone in Task 8a")
 def test_holes_clear_of_parts(board: pcbnew.BOARD) -> None:
 	for hole in with_id(board, MOUNTING_HOLE_FOOTPRINT):
 		for footprint in parts(board):
@@ -838,7 +835,7 @@ MCU_DECOUPLING_PINS = {
 	"C12": "50",
 }
 MCU_DECOUPLING_MAX_MM = 3.5
-USB_PATH_MAX_MM = 40.0
+USB_PATH_MAX_MM = 37.0
 EDGE_FACING_BAND_MM = 1.0
 EDGE_FACING_NETS = ("XIN", "XOUT", "SWCLK", "SWDIO", "RUN", "+3V3", "+1V1", "GND")
 POWER_DIODE_MAX_SPACING_MM = 11.0
@@ -926,7 +923,6 @@ def chain_length(points: list[tuple[float, float]]) -> float:
 	return sum(math.dist(a, b) for a, b in itertools.pairwise(path))
 
 
-@pytest.mark.xfail(strict=True, reason="placement redone in Task 8a")
 def test_usb_path_is_short(board: pcbnew.BOARD) -> None:
 	for line in ("USB_DP", "USB_DM"):
 		total = chain_length(net_pads(board, f"{line}_CONN")) + chain_length(
