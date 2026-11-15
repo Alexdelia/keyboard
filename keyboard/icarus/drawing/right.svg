@@ -25,6 +25,10 @@ text {font-family:sans-serif;fill:#222}
 .layer-part {fill:#cfd9ea}
 .layer-cover {fill:#e9e0f2}
 .layer-stem {fill:#f3e3c4}
+.layer-mask {fill:#f4f4f4}
+.layer-copper {fill:#e0a060}
+.layer-plane {fill:#b5651d}
+.layer-dielectric {fill:#e6f2e0}
 .mark {font-size:1.2px;fill:#666;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
 .ref {font-size:0.8px;fill:#2e7d9a;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
 .label {font-size:1.8px;font-weight:bold;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
@@ -140,7 +144,7 @@ text {font-family:sans-serif;fill:#222}
 <polygon id="part-C5" class="part" points="3.385,-21.69 3.385,-23.51 2.465,-23.51 2.465,-21.69"/>
 <polygon id="part-C6" class="part" points="3.535,-26.46 1.715,-26.46 1.715,-25.54 3.535,-25.54"/>
 <polygon id="part-R101" class="part" points="1.695,-27.93 3.555,-27.93 3.555,-28.87 1.695,-28.87"/>
-<polygon id="part-U2" class="part" points="7.575,-12.87 7.575,-17.13 5.075,-17.13 5.075,-12.87"/>
+<polygon id="part-U2" class="part" points="5.075,-15.93 5.075,-11.67 7.575,-11.67 7.575,-15.93"/>
 <polygon id="part-C15" class="part" points="4.535,-14.49 4.535,-16.31 3.615,-16.31 3.615,-14.49"/>
 <polygon id="part-R8" class="part" points="4.545,-11.77 4.545,-13.63 3.605,-13.63 3.605,-11.77"/>
 <polygon id="part-R3" class="part" points="9.795,-14.87 9.795,-16.73 8.855,-16.73 8.855,-14.87"/>
@@ -186,7 +190,7 @@ text {font-family:sans-serif;fill:#222}
 <text class="ref" x="22.3003" y="-35.9999" dy="0.35em" text-anchor="middle">D2</text>
 <line class="leader" x1="15.0998" y1="-39.3" x2="15.0998" y2="-40.3"/>
 <text class="ref" x="15.0998" y="-40.3" dy="0.35em" text-anchor="middle">D3</text>
-<text class="ref" x="6.325" y="-15" dy="0.35em" text-anchor="middle">U2</text>
+<text class="ref" x="6.325" y="-13.8" dy="0.35em" text-anchor="middle">U2</text>
 <text class="ref" x="25.6003" y="-39.3" dy="0.35em" text-anchor="middle">F1</text>
 <text class="ref" x="-3.9" y="-35.4" dy="0.35em" text-anchor="middle">TP1</text>
 <text class="ref" x="-3.9" y="-33.1" dy="0.35em" text-anchor="middle">TP2</text>

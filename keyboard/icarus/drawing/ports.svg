@@ -25,6 +25,10 @@ text {font-family:sans-serif;fill:#222}
 .layer-part {fill:#cfd9ea}
 .layer-cover {fill:#e9e0f2}
 .layer-stem {fill:#f3e3c4}
+.layer-mask {fill:#f4f4f4}
+.layer-copper {fill:#e0a060}
+.layer-plane {fill:#b5651d}
+.layer-dielectric {fill:#e6f2e0}
 .mark {font-size:1.2px;fill:#666;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
 .ref {font-size:0.8px;fill:#2e7d9a;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}
 .label {font-size:1.8px;font-weight:bold;paint-order:stroke;stroke:#fff;stroke-width:0.5;stroke-linejoin:round}

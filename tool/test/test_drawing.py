@@ -1,3 +1,4 @@
+import json
 import math
 import tempfile
 import xml.etree.ElementTree as ET
@@ -5,11 +6,12 @@ from pathlib import Path
 
 import pcbnew
 import pytest
-from kb import drawing, plate
+from kb import drawing, plate, stack
 from kb.layout import Board, Side, half_positions, load_board
 from kb.outline import PLUG_LENGTH_MM, board_outline, board_ports, plug_outline
 from kb.placement import board_holes, load_placement, side_entries
 from kb.schematic import PORT_REFS
+from kb.stack import load_stack
 from shapely.geometry import Polygon
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
@@ -347,12 +349,35 @@ def test_no_two_texts_overlap(views_dir: Path, side: Side) -> None:
 			assert apart, (first_text, second_text)
 
 
-def test_stack_pcb_thickness_comes_from_plate(
+def test_stack_pcb_comes_from_board_data(
 	tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-	monkeypatch.setattr(plate, "BOARD_THICKNESS_MM", 1.6)
+	config = json.loads((BOARD_DIR / "board.json").read_text())
+	pcb = config["pcb"]
+	pcb["thicknessMm"] = 1.6
+	pcb["stackup"] = "JLC04161H-3313"
+	(plane,) = [layer for layer in pcb["layers"] if layer.get("plane")]
+	plane["plane"] = "AGND"
+	(core,) = [layer for layer in pcb["layers"] if layer["kind"] == "core"]
+	core["thicknessMm"] = 1.065
+	edited = Board(layout=load_board(BOARD_DIR).layout, config=config)
+	monkeypatch.setattr(drawing, "load_board", lambda _: edited)
+	monkeypatch.setattr(stack, "load_board", lambda _: edited)
 	drawing.generate_views(BOARD_DIR, tmp_path)
-	assert "PCB 1.6 thick" in stack_text(tmp_path / "stack.svg")
+	text = stack_text(tmp_path / "stack.svg")
+	assert "PCB 1.6 thick, 4 copper layers" in text
+	assert "JLC04161H-3313" in text
+	assert "AGND plane" in text
+	assert "core NP-155F 1.065" in text
+
+
+def test_stack_shows_every_pcb_layer(views_dir: Path) -> None:
+	text = stack_text(views_dir / "stack.svg")
+	for layer in load_stack(BOARD_DIR).layers:
+		assert f"{layer.name or layer.kind} " in text
+		assert f"{layer.thickness_mm:g}" in text
+	assert "In1.Cu 0.0152 power GND plane" in text
+	assert "In2.Cu 0.0152 signal" in text
 
 
 @pytest.mark.parametrize("side", SIDES)

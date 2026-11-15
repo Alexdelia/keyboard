@@ -10,7 +10,6 @@ from kb.placement import board_holes, button_holes
 
 PlateKind = Literal["plate", "bottom"]
 
-BOARD_THICKNESS_MM = 1.2
 STANDOFF_HEIGHT_MM = 1.30
 STEM_TUBE_PROTRUSION_MM = 2.50
 PEG_PROTRUSION_MM = 1.80

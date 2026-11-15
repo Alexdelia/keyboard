@@ -44,6 +44,7 @@ from kb.parts import load_parts
 from kb.placement import board_holes, courtyard_polygon, part_poses
 from kb.plate import DEFAULT_BOARD_DIR, SIDES, num
 from kb.schematic import PORT_REFS, footprints_by_ref
+from kb.stack import Stack, StackLayer, load_stack
 
 Box = tuple[float, float, float, float]
 
@@ -56,6 +57,8 @@ COVER_THICKNESS_MM = 1.2
 PLUG_ABOVE_PCB_TOP_MM = 0.67
 PLUG_BELOW_PCB_BOTTOM_MM = 5.13
 STACK_WIDTH_MM = 44.0
+DETAIL_WIDTH_MM = 16.0
+DETAIL_GAP_MM = 6.0
 STEM_SKETCH_WIDTH_MM = 4.0
 PANEL_MARGIN_MM = 4.0
 PANEL_GAP_MM = 8.0
@@ -170,6 +173,10 @@ def _style(unit: float) -> str:
 		".layer-part": "fill:#cfd9ea",
 		".layer-cover": "fill:#e9e0f2",
 		".layer-stem": "fill:#f3e3c4",
+		".layer-mask": "fill:#f4f4f4",
+		".layer-copper": "fill:#e0a060",
+		".layer-plane": "fill:#b5651d",
+		".layer-dielectric": "fill:#e6f2e0",
 		".mark": f"{size(1.2)};fill:#666;{halo}",
 		".ref": f"{size(0.8)};fill:#2e7d9a;{halo}",
 		".label": f"{size(1.8)};font-weight:bold;{halo}",
@@ -931,10 +938,62 @@ def _layer_rect(
 	)
 
 
+def _detail_class(layer: StackLayer) -> str:
+	if layer.kind == "copper":
+		return "layer-plane" if layer.plane else "layer-copper"
+	if layer.kind == "mask":
+		return "layer-mask"
+	return "layer-dielectric"
+
+
+def _detail_label(layer: StackLayer) -> str:
+	words = [layer.name or layer.kind]
+	if layer.material:
+		words.append(layer.material)
+	words.append(f"{layer.thickness_mm:g}")
+	if layer.epsilon_r is not None:
+		words.append(f"er {layer.epsilon_r:g}")
+	if layer.role:
+		words.append(layer.role)
+	if layer.plane:
+		words.append(f"{layer.plane} plane")
+	return " ".join(words)
+
+
+def _stack_detail(stack: Stack, left: float, top: float) -> tuple[list[str], float]:
+	lines = [
+		_text(
+			(left, top),
+			f"PCB layers ({stack.fab} {stack.stackup}, "
+			f"{len(stack.copper)} copper, not to scale)",
+			"note",
+			anchor="start",
+		)
+	]
+	row_top = top + CALLOUT_ROW_MM
+	for layer in stack.layers:
+		lines.append(
+			_layer_rect(
+				left, row_top, DETAIL_WIDTH_MM, CALLOUT_ROW_MM, _detail_class(layer)
+			)
+		)
+		lines.append(
+			_text(
+				(left + DETAIL_WIDTH_MM + 2, row_top + CALLOUT_ROW_MM / 2),
+				_detail_label(layer),
+				"note",
+				anchor="start",
+			)
+		)
+		row_top += CALLOUT_ROW_MM
+	return lines, row_top
+
+
 def stack_svg(board_dir: Path) -> str:
 	board = load_board(board_dir)
 	parts = load_parts(board_dir)
-	pcb = plate.BOARD_THICKNESS_MM
+	stack = load_stack(board_dir)
+	pcb = stack.thickness_mm
 	standoff = plate.STANDOFF_HEIGHT_MM
 	bottom_standoff = plate.BOTTOM_STANDOFF_HEIGHT_MM
 	stem = plate.STEM_TUBE_PROTRUSION_MM
@@ -979,7 +1038,7 @@ def stack_svg(board_dir: Path) -> str:
 				f"plate {PLATE_THICKNESS_MM:g} thick",
 			),
 			(-standoff / 2, right, f"plate standoff {standoff:.2f}"),
-			(pcb / 2, right, f"PCB {pcb:g} thick"),
+			(pcb / 2, right, f"PCB {pcb:g} thick, {len(stack.copper)} copper layers"),
 			(
 				pcb + stem / 2,
 				stem_x + STEM_SKETCH_WIDTH_MM / 2,
@@ -1028,9 +1087,11 @@ def stack_svg(board_dir: Path) -> str:
 			"note",
 		)
 	)
+	detail, detail_bottom = _stack_detail(stack, left, feet_y + DETAIL_GAP_MM)
+	body += detail
 	extent = [
 		(left - 40, plate_top - 2),
-		(right + 40, feet_y + 2),
+		(right + 40, detail_bottom + 2),
 	]
 	legend = [
 		LegendEntry("layer layer-plate", "plate"),
@@ -1038,6 +1099,10 @@ def stack_svg(board_dir: Path) -> str:
 		LegendEntry("layer layer-part", "bottom-side part"),
 		LegendEntry("layer layer-stem", "switch stem tube"),
 		LegendEntry("layer layer-cover", "bottom cover"),
+		LegendEntry("layer layer-copper", "copper, signal"),
+		LegendEntry("layer layer-plane", "copper, plane"),
+		LegendEntry("layer layer-dielectric", "dielectric"),
+		LegendEntry("layer layer-mask", "solder mask"),
 		LegendEntry("plug", "plug outline"),
 		LegendEntry("dim", "callout"),
 	]

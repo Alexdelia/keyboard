@@ -13,11 +13,11 @@ All numbers are mm. Frame: left half, origin = middle column home key, x toward 
 | file | holds |
 |---|---|
 | `layout.json` | key positions (layout-fit tool, `tool/layout-fit/`), desk tilt 18 deg inward |
-| `board.json` | knob, board outline, USB-C ports, plug, mounting, electronics zone |
+| `board.json` | knob, board outline, USB-C ports, plug, mounting, electronics zone, PCB layer stack |
 | `parts.json` | parts with LCSC numbers |
 | `channels.json` | key to mux channel, GPIO map |
 | `placement.json` | pose of every non-key part |
-| `pcb/`, `plate/`, `drawing/` | generated, never edit by hand (`drawing/`: `python -m kb.drawing`) |
+| `pcb/`, `plate/`, `drawing/` | generated, never edit by hand (`pcb/` placement: `python -m kb.place`, routing: `python -m kb.route [left] [right]`; `drawing/`: `python -m kb.drawing`) |
 
 ## Board shape (`board.json`)
 
@@ -33,9 +33,29 @@ All numbers are mm. Frame: left half, origin = middle column home key, x toward 
 | layer | value |
 |---|---|
 | plate (transparent) | 1.2 thick, 1.30 above PCB |
-| PCB (white, silver HASL) | 1.2 |
+| PCB (white, lead-free HASL) | 1.2, 4 copper layers, see below |
 | parts | all on the PCB bottom, tallest USB-C 3.3 |
 | bottom cover | 3.80 below PCB, needs feet >= 0.5 (plug hangs 0.13 below the cover) |
+
+### PCB layers (`board.json` `pcb`)
+
+JLCPCB 4-layer, 1.2 thick, impedance stack `JLC04121H-7628` (outer copper 1 oz, inner 0.5 oz). Layer thicknesses and dielectric constants are JLCPCB's for that stack; they add up to 1.15 with mask, the fab's nominal is 1.2. Copper finish lead-free HASL (`copperFinish`, KiCad name `HAL lead-free`).
+
+| layer | kind | thickness | role |
+|---|---|---|---|
+| F.Mask | solder resist, er 3.8 | 0.01524 | |
+| F.Cu | copper | 0.035 | signal |
+| | prepreg NP-155F 7628, er 4.4 | 0.2104 | |
+| In1.Cu | copper | 0.0152 | power: solid GND plane |
+| | core NP-155F, er 4.36 | 0.6 | |
+| In2.Cu | copper | 0.0152 | signal |
+| | prepreg NP-155F 7628, er 4.4 | 0.2104 | |
+| B.Cu | copper | 0.035 | signal |
+| B.Mask | solder resist, er 3.8 | 0.01524 | |
+
+- `kb.place` writes the layer count, layer roles (KiCad layer type) and this stackup into both boards
+- a layer with `plane` gets one zone of that net covering the whole outline, regenerated and refilled on every run like Edge.Cuts. Copper keeps the board's edge clearance; the only gaps are clearances around other nets' holes and pads
+- In1.Cu stays one unbroken GND plane under the analog lines, the muxes and the MCU
 
 ## Mounting
 

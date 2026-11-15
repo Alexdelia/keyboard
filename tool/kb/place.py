@@ -1,3 +1,4 @@
+import itertools
 import re
 import shutil
 import subprocess
@@ -29,8 +30,8 @@ from kb.layout import (
 )
 from kb.outline import board_outline
 from kb.placement import board_holes, key_part_poses, part_poses
-from kb.plate import BOARD_THICKNESS_MM
 from kb.sexpr import Sym, dump, parse
+from kb.stack import Stack, StackLayer, load_stack
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SIDES: tuple[Side, ...] = ("left", "right")
@@ -51,6 +52,14 @@ BOARD_ONLY_ATTRIBUTES = (
 )
 SCHEMATIC_ONLY_FIELDS = ("Footprint", "Sheetname", "Sheetfile")
 GENERATED_HOLE_PREFIX = "MH"
+LAYER_TYPES = {
+	"signal": pcbnew.LT_SIGNAL,
+	"power": pcbnew.LT_POWER,
+	"mixed": pcbnew.LT_MIXED,
+}
+MASK_TYPES = {"F.Mask": "Top Solder Mask", "B.Mask": "Bottom Solder Mask"}
+PLANE_CLEARANCE_MM = 0.2
+PLANE_MIN_WIDTH_MM = 0.2
 
 
 @dataclass(frozen=True)
@@ -310,12 +319,41 @@ def _add_edge(board: pcbnew.BOARD, outline: list[Point]) -> None:
 		board.Add(segment)
 
 
-def _configure(board: pcbnew.BOARD) -> None:
+def _configure(board: pcbnew.BOARD, stack: Stack) -> None:
+	board.SetCopperLayerCount(len(stack.copper))
+	for layer in stack.copper:
+		board.SetLayerType(board.GetLayerID(layer.name), LAYER_TYPES[layer.role])
 	settings = board.GetDesignSettings()
-	settings.SetBoardThickness(pcbnew.FromMM(BOARD_THICKNESS_MM))
+	settings.SetBoardThickness(pcbnew.FromMM(stack.thickness_mm))
 	origin = pcbnew.VECTOR2I_MM(*BOARD_ORIGIN_MM)
 	settings.SetAuxOrigin(origin)
 	settings.SetGridOrigin(origin)
+
+
+def _plane(
+	board: pcbnew.BOARD, layer: str, net: str, outline: list[Point]
+) -> pcbnew.ZONE:
+	zone = pcbnew.ZONE(board)
+	zone.SetLayer(board.GetLayerID(layer))
+	zone.SetNet(board.FindNet(net))
+	zone.SetLocalClearance(pcbnew.FromMM(PLANE_CLEARANCE_MM))
+	zone.SetMinThickness(pcbnew.FromMM(PLANE_MIN_WIDTH_MM))
+	shape = zone.Outline()
+	shape.NewOutline()
+	for point in outline:
+		shape.Append(_vector(point))
+	board.Add(zone)
+	return zone
+
+
+def regenerate_planes(board: pcbnew.BOARD, stack: Stack, outline: list[Point]) -> None:
+	layers = [board.GetLayerID(name) for name in stack.planes]
+	for zone in list(board.Zones()):
+		if any(zone.IsOnLayer(layer) for layer in layers):
+			board.Delete(zone)
+	planes = [_plane(board, layer, net, outline) for layer, net in stack.planes.items()]
+	board.BuildConnectivity()
+	pcbnew.ZONE_FILLER(board).Fill(planes)
 
 
 def _bottom(footprint: pcbnew.FOOTPRINT) -> int:
@@ -386,8 +424,9 @@ def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	holes = board_holes(board_dir)[side]
 	netlist = export_netlist(board_dir / "pcb" / side / f"{side}.kicad_sch")
 	placers = generated_placers(board_dir, side)
+	stack = load_stack(board_dir)
 
-	_configure(board)
+	_configure(board, stack)
 	footprints = _prune(board, netlist)
 	kept = [fp for ref, fp in footprints.items() if ref not in placers]
 	parking = Parking(parking_origin(outline, kept))
@@ -422,6 +461,7 @@ def update_board(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 		_place(mount, hole, 0)
 	_clear_edge(board)
 	_add_edge(board, outline)
+	regenerate_planes(board, stack, outline)
 
 
 def _shifted(pose: Located) -> Pose:
@@ -561,6 +601,51 @@ def normalize(text: str) -> str:
 	return result
 
 
+def _number(value: float) -> Sym:
+	return Sym(format(value, "g"))
+
+
+def _stackup_layer(layer: StackLayer, name: str) -> list:
+	entry = [
+		Sym("layer"),
+		name,
+		[Sym("type"), MASK_TYPES.get(layer.name, layer.kind)],
+		[Sym("thickness"), _number(layer.thickness_mm)],
+	]
+	if layer.material:
+		entry.append([Sym("material"), layer.material])
+	if layer.epsilon_r is not None:
+		entry.append([Sym("epsilon_r"), _number(layer.epsilon_r)])
+	return entry
+
+
+def stackup_tree(stack: Stack) -> list:
+	dielectric = itertools.count(1)
+	return [
+		Sym("stackup"),
+		*(
+			_stackup_layer(layer, layer.name or f"dielectric {next(dielectric)}")
+			for layer in stack.layers
+		),
+		[Sym("copper_finish"), stack.copper_finish],
+	]
+
+
+def with_stackup(text: str, stack: Stack) -> str:
+	tree = parse(text)
+	(setup,) = _children(tree, "setup")
+	setup[:] = [
+		setup[0],
+		stackup_tree(stack),
+		*(
+			child
+			for child in setup[1:]
+			if not (isinstance(child, list) and child[0] == "stackup")
+		),
+	]
+	return dump(tree)
+
+
 def _round_trip(path: Path) -> None:
 	with tempfile.TemporaryDirectory() as scratch:
 		saved = Path(scratch) / path.name
@@ -572,23 +657,37 @@ def _round_trip(path: Path) -> None:
 	raise RuntimeError(f"{path.name} does not converge under load and save")
 
 
-def save_board(board: pcbnew.BOARD, target: Path) -> None:
+def save_board(board: pcbnew.BOARD, target: Path, stack: Stack | None = None) -> None:
 	with tempfile.TemporaryDirectory() as scratch:
 		saved = Path(scratch) / target.name
 		pcbnew.SaveBoard(str(saved), board)
-		saved.write_text(normalize(saved.read_text()))
+		text = saved.read_text()
+		if stack is not None:
+			text = with_stackup(text, stack)
+		saved.write_text(normalize(text))
 		_round_trip(saved)
 		assert_unique_uuids(saved.read_text())
 		shutil.copyfile(saved, target)
 
 
+def _empty_board_with_project(target: Path) -> pcbnew.BOARD:
+	with tempfile.TemporaryDirectory() as scratch:
+		blank = Path(scratch) / target.name
+		project = target.with_suffix(".kicad_pro")
+		shutil.copyfile(project, blank.with_suffix(".kicad_pro"))
+		pcbnew.SaveBoard(str(blank), pcbnew.CreateEmptyBoard(), True)
+		return pcbnew.LoadBoard(str(blank))
+
+
 def place_half(board_dir: Path, side: Side) -> None:
 	target = board_dir / "pcb" / side / f"{side}.kicad_pcb"
 	board = (
-		pcbnew.LoadBoard(str(target)) if target.exists() else pcbnew.CreateEmptyBoard()
+		pcbnew.LoadBoard(str(target))
+		if target.exists()
+		else _empty_board_with_project(target)
 	)
 	update_board(board, board_dir, side)
-	save_board(board, target)
+	save_board(board, target, load_stack(board_dir))
 
 
 def main(argv: list[str]) -> None:

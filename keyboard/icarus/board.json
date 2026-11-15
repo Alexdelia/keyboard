@@ -42,5 +42,70 @@
 		"fit": "insideOutlineFirst",
 		"extendUnder": ["pinkyOuter", "pinky"],
 		"extendDownTo": "thumb0"
+	},
+	"pcb": {
+		"fab": "JLCPCB",
+		"stackup": "JLC04121H-7628",
+		"thicknessMm": 1.2,
+		"copperFinish": "HAL lead-free",
+		"layers": [
+			{
+				"kind": "mask",
+				"name": "F.Mask",
+				"material": "Solder Resist",
+				"thicknessMm": 0.01524,
+				"epsilonR": 3.8
+			},
+			{
+				"kind": "copper",
+				"name": "F.Cu",
+				"thicknessMm": 0.035,
+				"role": "signal"
+			},
+			{
+				"kind": "prepreg",
+				"material": "NP-155F 7628",
+				"thicknessMm": 0.2104,
+				"epsilonR": 4.4
+			},
+			{
+				"kind": "copper",
+				"name": "In1.Cu",
+				"thicknessMm": 0.0152,
+				"role": "power",
+				"plane": "GND"
+			},
+			{
+				"kind": "core",
+				"material": "NP-155F",
+				"thicknessMm": 0.6,
+				"epsilonR": 4.36
+			},
+			{
+				"kind": "copper",
+				"name": "In2.Cu",
+				"thicknessMm": 0.0152,
+				"role": "signal"
+			},
+			{
+				"kind": "prepreg",
+				"material": "NP-155F 7628",
+				"thicknessMm": 0.2104,
+				"epsilonR": 4.4
+			},
+			{
+				"kind": "copper",
+				"name": "B.Cu",
+				"thicknessMm": 0.035,
+				"role": "signal"
+			},
+			{
+				"kind": "mask",
+				"name": "B.Mask",
+				"material": "Solder Resist",
+				"thicknessMm": 0.01524,
+				"epsilonR": 3.8
+			}
+		]
 	}
 }

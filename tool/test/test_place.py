@@ -25,7 +25,7 @@ from kb.outline import (
 )
 from kb.place import (
 	BOARD_ORIGIN_MM,
-	BOARD_THICKNESS_MM,
+	LAYER_TYPES,
 	SIDES,
 	Netlist,
 	assert_unique_uuids,
@@ -33,6 +33,8 @@ from kb.place import (
 	load_footprint,
 	normalize,
 	place_half,
+	regenerate_planes,
+	save_board,
 )
 from kb.placement import (
 	PLACEMENT_FILE,
@@ -43,6 +45,7 @@ from kb.placement import (
 	port_poses,
 	side_entries,
 )
+from kb.route import clear_routing
 from kb.schematic import (
 	ENCODER_FILTER_REFS,
 	ENCODER_PULLUP_REFS,
@@ -52,8 +55,10 @@ from kb.schematic import (
 )
 from kb.sexpr import dump, parse
 from kb.sheet import stable_uuid
+from kb.stack import Stack, load_stack
 from shapely.geometry import Point as Spot
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 TOLERANCE_MM = 1e-4
@@ -69,6 +74,12 @@ SENSOR_CAP_MAX_DISTANCE_MM = 2.0
 CRYSTAL_MAX_DISTANCE_MM = 4.0
 ENCODER_SATELLITE_MAX_DISTANCE_MM = 3.5
 SVG = "{http://www.w3.org/2000/svg}"
+EXPECTED_COPPER_LAYERS = ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")
+EXPECTED_THICKNESS_MM = 1.2
+GROUND_PLANE_LAYER = "In1.Cu"
+LEAD_FREE_HASL = "HAL lead-free"
+GROUND_NET = "GND"
+PLANE_MIN_COVERAGE = 0.9
 
 
 @pytest.fixture(scope="module")
@@ -103,6 +114,11 @@ def positions(side: Side) -> list[KeyPosition]:
 @pytest.fixture(scope="module")
 def outline(side: Side) -> list[Point]:
 	return board_outline(load_board(BOARD_DIR), side)
+
+
+@pytest.fixture(scope="module")
+def stack() -> Stack:
+	return load_stack(BOARD_DIR)
 
 
 def mm_point(vector: pcbnew.VECTOR2I) -> tuple[float, float]:
@@ -310,9 +326,115 @@ def test_through_hole_on_top(board: pcbnew.BOARD) -> None:
 	)
 
 
-def test_thickness(board: pcbnew.BOARD) -> None:
+def test_thickness(board: pcbnew.BOARD, stack: Stack) -> None:
 	thickness = pcbnew.ToMM(board.GetDesignSettings().GetBoardThickness())
-	assert thickness == pytest.approx(BOARD_THICKNESS_MM)
+	assert thickness == pytest.approx(stack.thickness_mm)
+	assert thickness == pytest.approx(EXPECTED_THICKNESS_MM)
+
+
+def copper_layer_names(board: pcbnew.BOARD) -> tuple[str, ...]:
+	return tuple(
+		board.GetLayerName(layer) for layer in board.GetEnabledLayers().CuStack()
+	)
+
+
+def test_copper_layers_follow_stack(board: pcbnew.BOARD, stack: Stack) -> None:
+	assert board.GetCopperLayerCount() == len(EXPECTED_COPPER_LAYERS)
+	assert copper_layer_names(board) == EXPECTED_COPPER_LAYERS
+	assert copper_layer_names(board) == tuple(layer.name for layer in stack.copper)
+
+
+def test_layer_types_follow_stack(board: pcbnew.BOARD, stack: Stack) -> None:
+	for layer in stack.copper:
+		found = board.GetLayerType(board.GetLayerID(layer.name))
+		assert found == LAYER_TYPES[layer.role], layer.name
+	assert board.GetLayerType(board.GetLayerID(GROUND_PLANE_LAYER)) == pcbnew.LT_POWER
+
+
+def stackup_entries(text: str) -> list[list]:
+	(setup,) = [node for node in parse(text) if node[0] == "setup"]
+	(stackup,) = [node for node in setup if node[0] == "stackup"]
+	return [node for node in stackup if node[0] == "layer"]
+
+
+def entry_values(entry: list) -> dict[str, str]:
+	return {node[0]: node[1] for node in entry[2:]}
+
+
+def test_stackup_follows_stack(work_dir: Path, side: Side, stack: Stack) -> None:
+	entries = stackup_entries((work_dir / committed_pcb(side)).read_text())
+	for entry, layer in zip(entries, stack.layers, strict=True):
+		values = entry_values(entry)
+		assert float(values["thickness"]) == pytest.approx(layer.thickness_mm)
+		assert entry[1] == layer.name or values["type"] == layer.kind
+		assert values.get("material", "") == layer.material
+		if layer.epsilon_r is not None:
+			assert float(values["epsilon_r"]) == pytest.approx(layer.epsilon_r)
+
+
+def stackup_values(text: str) -> dict[str, str]:
+	(setup,) = [node for node in parse(text) if node[0] == "setup"]
+	(stackup,) = [node for node in setup if node[0] == "stackup"]
+	return {node[0]: node[1] for node in stackup if node[0] != "layer"}
+
+
+def test_copper_finish_follows_stack(work_dir: Path, side: Side, stack: Stack) -> None:
+	values = stackup_values((work_dir / committed_pcb(side)).read_text())
+	assert stack.copper_finish == LEAD_FREE_HASL
+	assert values["copper_finish"] == stack.copper_finish
+
+
+def zones_on(board: pcbnew.BOARD, name: str) -> list[pcbnew.ZONE]:
+	layer = board.GetLayerID(name)
+	return [zone for zone in board.Zones() if zone.IsOnLayer(layer)]
+
+
+def chain_points(chain: pcbnew.SHAPE_LINE_CHAIN) -> list[Point]:
+	return [mm_point(chain.CPoint(i)) for i in range(chain.PointCount())]
+
+
+def poly_set_polygon(polygons: pcbnew.SHAPE_POLY_SET) -> Polygon:
+	shapes = [
+		Polygon(
+			chain_points(polygons.Outline(index)),
+			[
+				chain_points(polygons.Hole(index, hole))
+				for hole in range(polygons.HoleCount(index))
+			],
+		)
+		for index in range(polygons.OutlineCount())
+	]
+	return unary_union(shapes)
+
+
+def test_ground_plane_covers_outline(
+	board: pcbnew.BOARD, outline: list[Point], stack: Stack
+) -> None:
+	assert stack.planes == {GROUND_PLANE_LAYER: GROUND_NET}
+	(zone,) = zones_on(board, GROUND_PLANE_LAYER)
+	assert zone.GetNetname() == GROUND_NET
+	assert zone.IsFilled()
+	assert not zone.GetIsRuleArea()
+	board_shape = Polygon(outline)
+	zone_shape = poly_set_polygon(zone.Outline())
+	assert zone_shape.hausdorff_distance(board_shape) <= EDGE_CLEARANCE_MM
+	layer = board.GetLayerID(GROUND_PLANE_LAYER)
+	filled = poly_set_polygon(zone.GetFilledPolysList(layer))
+	inner = board_shape.buffer(-EDGE_CLEARANCE_MM + TOLERANCE_MM)
+	assert filled.difference(inner).area < TOLERANCE_MM
+	assert filled.area / inner.area > PLANE_MIN_COVERAGE
+
+
+def test_no_other_net_on_ground_plane(board: pcbnew.BOARD) -> None:
+	layer = board.GetLayerID(GROUND_PLANE_LAYER)
+	assert {zone.GetNetname() for zone in zones_on(board, GROUND_PLANE_LAYER)} == {
+		GROUND_NET
+	}
+	assert [
+		track.GetNetname()
+		for track in board.GetTracks()
+		if track.Type() == pcbnew.PCB_TRACE_T and track.GetLayer() == layer
+	] == []
 
 
 def test_mounting_holes(board: pcbnew.BOARD, side: Side) -> None:
@@ -564,10 +686,19 @@ def run(*command: str) -> subprocess.CompletedProcess:
 	return subprocess.run(command, capture_output=True, text=True, check=False)
 
 
-def test_fresh_build_equals_committed(work_dir: Path) -> None:
+def test_fresh_build_equals_committed_without_routing(
+	work_dir: Path, tmp_path: Path
+) -> None:
 	for side in SIDES:
 		name = committed_pcb(side)
-		assert (BOARD_DIR / name).read_bytes() == (work_dir / name).read_bytes()
+		unrouted = tmp_path / f"{side}.kicad_pcb"
+		board = pcbnew.LoadBoard(str(BOARD_DIR / name))
+		clear_routing(board)
+		regenerate_planes(
+			board, load_stack(BOARD_DIR), board_outline(load_board(BOARD_DIR), side)
+		)
+		save_board(board, unrouted)
+		assert unrouted.read_bytes() == (work_dir / name).read_bytes()
 
 
 def test_rerun_on_committed_is_noop(tmp_path: Path) -> None:
@@ -644,6 +775,7 @@ def test_update_preserves_manual_work(tmp_path: Path) -> None:
 	without_placement(copy, "C1")
 	target = copy / committed_pcb("left")
 	board = pcbnew.LoadBoard(str(target))
+	routed_items = len(board.GetTracks())
 	part = by_ref(board)["C1"]
 	part.SetPosition(pcbnew.VECTOR2I_MM(120.0, 70.0))
 	track = pcbnew.PCB_TRACK(board)
@@ -664,13 +796,40 @@ def test_update_preserves_manual_work(tmp_path: Path) -> None:
 	original = pcbnew.LoadBoard(str(BOARD_DIR / committed_pcb("left")))
 	assert close(mm_point(by_ref(updated)["C1"].GetPosition()), moved_at)
 	assert by_ref(updated)["C1"].GetLayer() == layer
-	assert len(updated.GetTracks()) == 1
+	assert len(updated.GetTracks()) == routed_items + 1
 	old_switch = mm_point(switch_for(original, "thumb0").GetPosition())
 	new_switch = mm_point(switch_for(updated, "thumb0").GetPosition())
 	assert new_switch[0] - old_switch[0] == pytest.approx(1.0, abs=TOLERANCE_MM)
 	old_sensor = mm_point(sensor_for(original, "thumb0").GetPosition())
 	new_sensor = mm_point(sensor_for(updated, "thumb0").GetPosition())
 	assert new_sensor[0] - old_sensor[0] == pytest.approx(1.0, abs=TOLERANCE_MM)
+
+
+def test_update_regenerates_plane_and_keeps_other_zones(tmp_path: Path) -> None:
+	copy = edited_copy(tmp_path)
+	target = copy / committed_pcb("left")
+	board = pcbnew.LoadBoard(str(target))
+	for zone in list(board.Zones()):
+		board.Delete(zone)
+	stray = pcbnew.ZONE(board)
+	stray.SetLayer(board.GetLayerID(GROUND_PLANE_LAYER))
+	stray.SetNet(board.FindNet("+3V3"))
+	kept = pcbnew.ZONE(board)
+	kept.SetLayer(pcbnew.B_Cu)
+	kept.SetNet(board.FindNet(GROUND_NET))
+	for zone in (stray, kept):
+		zone.Outline().NewOutline()
+		for x, y in ((100.0, 100.0), (110.0, 100.0), (110.0, 110.0)):
+			zone.Outline().Append(pcbnew.VECTOR2I_MM(x, y))
+		board.Add(zone)
+	pcbnew.SaveBoard(str(target), board)
+
+	place_half(copy, "left")
+
+	updated = pcbnew.LoadBoard(str(target))
+	(plane,) = zones_on(updated, GROUND_PLANE_LAYER)
+	assert plane.GetNetname() == GROUND_NET
+	assert [zone.GetNetname() for zone in zones_on(updated, "B.Cu")] == [GROUND_NET]
 
 
 def test_update_parks_missing_and_deletes_orphans(tmp_path: Path) -> None:
