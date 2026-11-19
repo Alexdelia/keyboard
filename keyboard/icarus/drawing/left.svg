@@ -144,8 +144,8 @@ text {font-family:sans-serif;fill:#222}
 <polygon id="part-C5" class="part" points="-14.465,-21.69 -14.465,-23.51 -15.385,-23.51 -15.385,-21.69"/>
 <polygon id="part-C6" class="part" points="-14.315,-26.46 -16.135,-26.46 -16.135,-25.54 -14.315,-25.54"/>
 <polygon id="part-R101" class="part" points="-16.155,-27.93 -14.295,-27.93 -14.295,-28.87 -16.155,-28.87"/>
-<polygon id="part-U2" class="part" points="-14.775,-17.53 -14.775,-13.27 -12.275,-13.27 -12.275,-17.53"/>
-<polygon id="part-C15" class="part" points="-15.465,-14.49 -15.465,-16.31 -16.385,-16.31 -16.385,-14.49"/>
+<polygon id="part-U2" class="part" points="-13.275,-17.23 -13.275,-12.97 -10.775,-12.97 -10.775,-17.23"/>
+<polygon id="part-C15" class="part" points="-14.065,-14.19 -14.065,-16.01 -14.985,-16.01 -14.985,-14.19"/>
 <polygon id="part-R8" class="part" points="-15.055,-18.67 -15.055,-20.53 -15.995,-20.53 -15.995,-18.67"/>
 <polygon id="part-R3" class="part" points="-8.055,-14.87 -8.055,-16.73 -8.995,-16.73 -8.995,-14.87"/>
 <polygon id="part-R4" class="part" points="-6.405,-14.87 -6.405,-16.73 -7.345,-16.73 -7.345,-14.87"/>
@@ -190,7 +190,7 @@ text {font-family:sans-serif;fill:#222}
 <text class="ref" x="-22.3003" y="-35.9999" dy="0.35em" text-anchor="middle">D2</text>
 <line class="leader" x1="-15.0998" y1="-39.3" x2="-15.0998" y2="-40.3"/>
 <text class="ref" x="-15.0998" y="-40.3" dy="0.35em" text-anchor="middle">D3</text>
-<text class="ref" x="-13.525" y="-15.4" dy="0.35em" text-anchor="middle">U2</text>
+<text class="ref" x="-12.025" y="-15.1" dy="0.35em" text-anchor="middle">U2</text>
 <text class="ref" x="-25.6003" y="-39.3" dy="0.35em" text-anchor="middle">F1</text>
 <text class="ref" x="3.9" y="-35.4" dy="0.35em" text-anchor="middle">TP1</text>
 <text class="ref" x="3.9" y="-33.1" dy="0.35em" text-anchor="middle">TP2</text>
@@ -221,7 +221,7 @@ text {font-family:sans-serif;fill:#222}
 <text class="ref" x="-15.225" y="-26" dy="0.35em" text-anchor="middle">C6</text>
 <text class="ref" x="-2.625" y="-25.5" dy="0.35em" text-anchor="middle">C8</text>
 <text class="ref" x="-5.4" y="-40.6" dy="0.35em" text-anchor="middle">C9</text>
-<text class="ref" x="-15.925" y="-15.4" dy="0.35em" text-anchor="middle">C15</text>
+<text class="ref" x="-14.525" y="-15.1" dy="0.35em" text-anchor="middle">C15</text>
 <text class="ref" x="13.2" y="15.4" dy="0.35em" text-anchor="middle">C21</text>
 <text class="ref" x="-6.405" y="-18.85" dy="0.35em" text-anchor="middle">C3</text>
 <text class="ref" x="-4.9" y="-3.5" dy="0.35em" text-anchor="middle">C16</text>

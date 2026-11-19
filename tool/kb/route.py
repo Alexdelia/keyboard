@@ -106,25 +106,57 @@ class Finish:
 	joins: tuple[str, ...] = ()
 
 
-FINISH: dict[Side, Finish] = {
-	"left": Finish(
-		joins=("+3V3", "/core/MUX_S2", "/MUX1_CH7", "/MUX1_CH6", "/MUX0_CH6"),
-	),
-	"right": Finish(
-		moves=(ViaMove("GND", (93.56, 51.826), (93.46, 51.926)),),
-		ripups=(
-			Ripup("/core/QSPI_SD0", (86.9, 37.25, 88.8, 40.45)),
-			Ripup("/core/+1V1", (86.9, 37.25, 88.8, 40.45)),
-			Ripup("/core/QSPI_SD2", (87.0, 37.4, 87.9, 40.6)),
-			Ripup("/core/SWCLK", (88.85, 30.4, 90.0, 31.6)),
+QSPI_BUNDLE_BOX = (64.0, 37.0, 71.0, 47.5)
+FINISH: dict[Side, tuple[Finish, ...]] = {
+	"left": (
+		Finish(
+			joins=("+3V3", "/core/MUX_S2", "/MUX1_CH7", "/MUX1_CH6", "/MUX0_CH6"),
 		),
-		joins=(
-			"/core/QSPI_SD0",
-			"/core/QSPI_SCLK",
-			"/core/+1V1",
-			"/core/XOUT",
-			"/core/SWCLK",
-			"/MUX1_CH2",
+		Finish(
+			moves=(
+				ViaMove("GND", (70.6516, 41.2529), (70.6516, 41.32)),
+				ViaMove("GND", (80.9375, 26.96), (80.896, 26.916)),
+			),
+			ripups=(
+				Ripup("+3V3", (64.85, 34.34, 64.87, 34.66)),
+				Ripup("/core/QSPI_SCLK", QSPI_BUNDLE_BOX),
+				Ripup("/core/QSPI_SD0", QSPI_BUNDLE_BOX),
+				Ripup("/core/QSPI_SD1", QSPI_BUNDLE_BOX),
+				Ripup("/core/QSPI_SD3", QSPI_BUNDLE_BOX),
+				Ripup("/core/QSPI_SS", QSPI_BUNDLE_BOX),
+				Ripup("/core/MUX_S2", (68.8, 35.5, 72.0, 56.6)),
+				Ripup("/core/+1V1", (70.7, 38.4, 71.5, 40.6)),
+			),
+			joins=(
+				"/core/QSPI_SD2",
+				"/core/QSPI_SD1",
+				"/core/QSPI_SS",
+				"/core/QSPI_SD0",
+				"/core/QSPI_SD3",
+				"/core/QSPI_SCLK",
+				"/core/+1V1",
+				"/core/MUX_S2",
+				"/MUX0_CH13",
+			),
+		),
+	),
+	"right": (
+		Finish(
+			moves=(ViaMove("GND", (93.56, 51.826), (93.46, 51.926)),),
+			ripups=(
+				Ripup("/core/QSPI_SD0", (86.9, 37.25, 88.8, 40.45)),
+				Ripup("/core/+1V1", (86.9, 37.25, 88.8, 40.45)),
+				Ripup("/core/QSPI_SD2", (87.0, 37.4, 87.9, 40.6)),
+				Ripup("/core/SWCLK", (88.85, 30.4, 90.0, 31.6)),
+			),
+			joins=(
+				"/core/QSPI_SD0",
+				"/core/QSPI_SCLK",
+				"/core/+1V1",
+				"/core/XOUT",
+				"/core/SWCLK",
+				"/MUX1_CH2",
+			),
 		),
 	),
 }
@@ -598,7 +630,8 @@ def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcS
 	stack = load_stack(board_dir)
 	prepare(board, board_dir, side)
 	autoroute(board, stack, work_dir, passes)
-	finish(board, stack, FINISH[side])
+	for plan in FINISH[side]:
+		finish(board, stack, plan)
 	_planes(board, board_dir, side)
 	save_board(board, target, stack)
 	return drc(target)
