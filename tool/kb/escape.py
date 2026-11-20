@@ -51,6 +51,16 @@ DIRECTION_EPSILON = 1e-9
 DATA_PAD_COUNT = 4
 PLANE_STUB_REACHES_MM = (0.9, 1.1, 1.3)
 PLANE_STUB_DIRECTION_COUNT = 5
+FANOUT_DEPTHS_MM = (0.7, 1.0, 1.3, 1.6, 1.9, 2.2, 2.5)
+FANOUT_SHIFTS_MM = (0.0, 0.45, 0.9, 1.35, 1.8)
+FANOUT_SLACK_MM = 0.03
+RUN_GAP_PINS = 2
+FANOUT_STRAIGHT_MM = 0.3
+VIA_FREE_NETS = ("USB_DP", "USB_DM", "XIN")
+LINK_FIRST_NETS = ("XIN",)
+DECOUPLED_NETS = ("+3V3",)
+PARTNER_REACH_MM = 3.0
+REPAIR_REACH_PINS = 4
 
 
 @dataclass(frozen=True)
@@ -455,6 +465,334 @@ def mcu_supply_escapes(
 			break
 		pending = deferred
 	return mine
+
+
+def _outward(pad: Pad, exposed: Pad) -> Point:
+	axis, _ = _long_axis(pad)
+	return _toward(axis, _sub(pad.center, exposed.center))
+
+
+def _fan_path(pad: Pad, exposed: Pad, depth: float, shift: float) -> Escape:
+	_, half = _long_axis(pad)
+	outward = _outward(pad, exposed)
+	along = (-outward[1], outward[0])
+	outer_end = _add(pad.center, outward, half)
+	return _via_path(
+		[pad.center, *_inner_path(outer_end, outward, depth, along, shift)], pad
+	)
+
+
+def _fanout_options(pad: Pad, exposed: Pad) -> list[Escape]:
+	return [*_ring_candidates(pad, exposed), *_fanout_candidates(pad, exposed)]
+
+
+def _fanout_candidates(pad: Pad, exposed: Pad) -> list[Escape]:
+	return [
+		_fan_path(pad, exposed, depth, sign * shift)
+		for depth in FANOUT_DEPTHS_MM
+		for shift in FANOUT_SHIFTS_MM
+		for sign in ((1, -1) if shift else (1,))
+		if shift <= depth - FANOUT_STRAIGHT_MM
+	]
+
+
+def _elbows(start: Point, end: Point) -> list[Point]:
+	dx, dy = end[0] - start[0], end[1] - start[1]
+	diagonal = min(abs(dx), abs(dy))
+	step = (math.copysign(diagonal, dx), math.copysign(diagonal, dy))
+	return [_add(start, step), _sub(end, step)]
+
+
+def _walls_off(pad: Pad, partner: Pad, ring: Sequence[Pad], exposed: Pad) -> bool:
+	outward = _outward(pad, exposed)
+	along = (-outward[1], outward[0])
+	low, high = sorted((_dot(pad.center, along), _dot(partner.center, along)))
+	inward_nets = {short_net(exposed.net), *SUPPLY_NETS}
+	return any(
+		low < _dot(other.center, along) < high
+		for other in ring
+		if other.net != pad.net
+		and is_connected(other.net)
+		and short_net(other.net) not in inward_nets
+		and _outward(other, exposed) == outward
+	)
+
+
+def _partner_link_candidates(
+	pad: Pad, part: Sequence[Pad], board_pads: Sequence[Pad]
+) -> list[Escape]:
+	exposed = _exposed_pad(part)
+	ring = _ring(part)
+	_, half = _long_axis(pad)
+	outer_end = _add(pad.center, _outward(pad, exposed), half)
+	partners = sorted(
+		(
+			other
+			for other in board_pads
+			if other.net == pad.net
+			and other.ref != pad.ref
+			and pad.layers <= other.layers
+			and math.dist(other.center, pad.center) <= PARTNER_REACH_MM
+			and not _walls_off(pad, other, ring, exposed)
+		),
+		key=lambda other: math.dist(other.center, pad.center),
+	)
+	return [
+		Escape(
+			_path_tracks(
+				[pad.center, outer_end, elbow, partner.center],
+				track_width(pad.net),
+				_single_layer(pad),
+				pad.net,
+			),
+			(),
+		)
+		for partner in partners
+		for elbow in _elbows(outer_end, partner.center)
+	]
+
+
+def _links(part: Sequence[Pad], board_pads: Sequence[Pad]) -> dict[Pad, list[Escape]]:
+	return {
+		pad: _partner_link_candidates(pad, part, board_pads)
+		for pad in _ring(part)
+		if short_net(pad.net) in (*LINK_FIRST_NETS, *DECOUPLED_NETS)
+	}
+
+
+def fanout_pads(part: Sequence[Pad]) -> list[Pad]:
+	skipped = {short_net(_exposed_pad(part).net), *SUPPLY_NETS, *VIA_FREE_NETS}
+	return [
+		pad
+		for pad in _ring(part)
+		if is_connected(pad.net) and short_net(pad.net) not in skipped
+	]
+
+
+def _runs(pads: Sequence[Pad], exposed: Pad) -> list[list[Pad]]:
+	runs: list[list[Pad]] = []
+	for pad in pads:
+		last = runs[-1][-1] if runs else None
+		if (
+			last is not None
+			and int(pad.number) - int(last.number) <= RUN_GAP_PINS
+			and _outward(pad, exposed) == _outward(last, exposed)
+		):
+			runs[-1].append(pad)
+		else:
+			runs.append([pad])
+	return runs
+
+
+def _fan_shifts(fan: Sequence[Pad], exposed: Pad) -> list[float]:
+	outward = _outward(fan[0], exposed)
+	along = (-outward[1], outward[0])
+	lateral = [_dot(pad.center, along) for pad in fan]
+	pitch = VIA_DRILL_MM + HOLE_TO_HOLE_MM + FANOUT_SLACK_MM
+	vias = [0.0]
+	for low, high in pairwise(lateral):
+		vias.append(vias[-1] + math.copysign(max(pitch, abs(high - low)), high - low))
+	centre = (sum(lateral) - sum(vias)) / len(fan)
+	return [round(via + centre - at, 4) for via, at in zip(vias, lateral, strict=True)]
+
+
+def _inner_sets(count: int) -> list[set[int]]:
+	alternate = [set(range(parity, count, 2)) for parity in (1, 0)]
+	return [
+		set(),
+		*alternate,
+		*({index for index in inner if 0 < index < count - 1} for inner in alternate),
+	]
+
+
+def _place(
+	plan: Sequence[Sequence[Escape]],
+	board_pads: Sequence[Pad],
+	others: Sequence[Escape],
+) -> list[Escape] | None:
+	placed: list[Escape] = []
+	for options in plan:
+		found = _first_clear(options, board_pads, [*others, *placed])
+		if found is None:
+			return None
+		placed.append(found)
+	return placed
+
+
+def _fan_plan(
+	fan: Sequence[Pad],
+	inner: Sequence[Pad],
+	depth: float,
+	exposed: Pad,
+	links: dict[Pad, list[Escape]],
+) -> list[list[Escape]]:
+	shifts = _fan_shifts(fan, exposed)
+	outer = [
+		[*links.get(pad, []), _fan_path(pad, exposed, depth, shift)]
+		for pad, shift in zip(fan, shifts, strict=True)
+	]
+	return outer + [
+		[*links.get(pad, []), *_fanout_options(pad, exposed)] for pad in inner
+	]
+
+
+def _run_plans(
+	run: Sequence[Pad], exposed: Pad, links: dict[Pad, list[Escape]]
+) -> list[list[list[Escape]]]:
+	plans = []
+	for inner_set in _inner_sets(len(run)):
+		fan = [pad for index, pad in enumerate(run) if index not in inner_set]
+		inner = [pad for index, pad in enumerate(run) if index in inner_set]
+		if not fan:
+			continue
+		lowest = max(map(abs, _fan_shifts(fan, exposed))) + FANOUT_STRAIGHT_MM
+		plans.extend(
+			_fan_plan(fan, inner, depth, exposed, links)
+			for depth in FANOUT_DEPTHS_MM
+			if depth >= lowest
+		)
+	return plans
+
+
+@dataclass(frozen=True)
+class Fanout:
+	exposed: Pad
+	links: dict[Pad, list[Escape]]
+	board_pads: Sequence[Pad]
+	ring_size: int
+
+	def offset(self, pad: Pad, origin: Pad) -> int:
+		half = self.ring_size // 2
+		return (int(pad.number) - int(origin.number) + half) % self.ring_size - half
+
+	def options(self, pad: Pad) -> list[Escape]:
+		return [
+			*self.links.get(pad, []),
+			*_fanout_candidates(pad, self.exposed),
+			*_ring_candidates(pad, self.exposed),
+		]
+
+	def clear(
+		self, options: Iterable[Escape], others: Sequence[Escape]
+	) -> Escape | None:
+		return _first_clear(options, self.board_pads, others)
+
+
+def _one_by_one(
+	run: Sequence[Pad], fanout: Fanout, others: Sequence[Escape]
+) -> list[Escape]:
+	placed: list[Escape] = []
+	for pad in run:
+		found = fanout.clear(fanout.options(pad), [*others, *placed])
+		if found is not None:
+			placed.append(found)
+	return placed
+
+
+def mcu_signal_escapes(
+	part: Sequence[Pad], board_pads: Sequence[Pad], others: Sequence[Escape]
+) -> list[Escape]:
+	fanout = Fanout(
+		_exposed_pad(part), _links(part, board_pads), board_pads, len(_ring(part))
+	)
+	escapes = list(others)
+	mine: list[Escape] = []
+	for pad, options in fanout.links.items():
+		if short_net(pad.net) in LINK_FIRST_NETS:
+			found = fanout.clear(options, escapes)
+			if found is not None:
+				escapes.append(found)
+				mine.append(found)
+	for run in reversed(_runs(fanout_pads(part), fanout.exposed)):
+		placed = _escape_run(run, fanout, escapes)
+		escapes += placed
+		mine += placed
+	owned = {_owner(escape, _ring(part)): escape for escape in mine}
+	return _repair(fanout_pads(part), fanout, others, owned)
+
+
+def _escape_run(
+	run: Sequence[Pad], fanout: Fanout, others: Sequence[Escape]
+) -> list[Escape]:
+	placed = next(
+		(
+			found
+			for plan in _run_plans(run, fanout.exposed, fanout.links)
+			if (found := _place(plan, fanout.board_pads, others)) is not None
+		),
+		None,
+	)
+	if placed is not None:
+		return placed
+	if len(run) <= 1:
+		return _one_by_one(run, fanout, others)
+	middle = len(run) // 2
+	later = _escape_run(run[middle:], fanout, others)
+	earlier = _escape_run(run[:middle], fanout, [*others, *later])
+	return [*later, *earlier]
+
+
+def _owner(escape: Escape, pads: Sequence[Pad]) -> Pad:
+	start = escape.tracks[0].start
+	return min(pads, key=lambda pad: math.dist(pad.center, start))
+
+
+def _repair(
+	wanted: Sequence[Pad],
+	fanout: Fanout,
+	others: Sequence[Escape],
+	owned: dict[Pad, Escape],
+) -> list[Escape]:
+	for pad in wanted:
+		if pad in owned:
+			continue
+		cluster = sorted(
+			(
+				other
+				for other in wanted
+				if abs(fanout.offset(other, pad)) <= REPAIR_REACH_PINS
+			),
+			key=lambda other: fanout.offset(other, pad),
+		)
+		rest = [escape for owner, escape in owned.items() if owner not in cluster]
+		placed = _most_constrained_first(cluster, fanout, [*others, *rest])
+		if len(placed) > sum(other in owned for other in cluster):
+			for other in cluster:
+				owned.pop(other, None)
+			owned |= placed
+	return list(owned.values())
+
+
+def _still_clear(
+	choice: Escape, options: dict[Pad, list[Escape]], pads: Sequence[Pad]
+) -> int:
+	return sum(
+		not conflicts(option, (), [choice]) for pad in pads for option in options[pad]
+	)
+
+
+def _most_constrained_first(
+	cluster: Sequence[Pad], fanout: Fanout, others: Sequence[Escape]
+) -> dict[Pad, Escape]:
+	placed: dict[Pad, Escape] = {}
+	left = list(cluster)
+	while left:
+		fixed = [*others, *placed.values()]
+		options = {
+			pad: [
+				option
+				for option in fanout.options(pad)
+				if not conflicts(option, fanout.board_pads, fixed)
+			]
+			for pad in left
+		}
+		pad = min(left, key=lambda other: len(options[other]))
+		left.remove(pad)
+		if options[pad]:
+			placed[pad] = max(
+				options[pad], key=lambda choice: _still_clear(choice, options, left)
+			)
+	return placed
 
 
 def _compass_from(heading: Point) -> list[Point]:

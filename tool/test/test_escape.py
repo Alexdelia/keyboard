@@ -8,6 +8,7 @@ from kb.escape import (
 	Pad,
 	conflicts,
 	escape_direction,
+	fanout_pads,
 	pad_shape,
 	short_net,
 )
@@ -20,12 +21,17 @@ from kb.route import (
 	ROUTER_BLIND_REFS,
 	board_escapes,
 	board_pads,
+	part_pads,
 )
 from shapely.geometry import Point as Spot
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SIDES: tuple[Side, ...] = ("left", "right")
-ESCAPED_MCU_NETS = ("+3V3", "+1V1", "GND")
+PARTNER_LINKED_NETS = ("+3V3", "XIN")
+ROUTER_ESCAPED_NETS: dict[str, tuple[str, ...]] = {
+	"left": (),
+	"right": ("QSPI_SD0",),
+}
 ESCAPED_LINK_NETS = (*LINK_DATA_NETS, "LINK_VBUS")
 OCTILINEAR_TOLERANCE_DEG = 0.01
 ENDPOINT_TOLERANCE_MM = 0.01
@@ -89,13 +95,12 @@ def pad_layers() -> tuple[str, ...]:
 
 def test_only_intended_pads_touched(escapes: list[Escape], pads: list[Pad]) -> None:
 	touched = _touched(escapes, pads)
-	assert {ref for ref, _, _ in touched} == {
-		MCU_REF,
-		LINK_REF,
-		*ROUTER_BLIND_REFS,
-	}
+	escaping = {MCU_REF, LINK_REF, *ROUTER_BLIND_REFS}
+	assert {ref for ref, _, _ in touched} >= escaping
 	assert all(
-		short_net(net) in ESCAPED_MCU_NETS for ref, _, net in touched if ref == MCU_REF
+		short_net(net) in PARTNER_LINKED_NETS
+		for ref, _, net in touched
+		if ref not in escaping
 	)
 	assert {short_net(net) for ref, _, net in touched if ref == LINK_REF} == set(
 		ESCAPED_LINK_NETS
@@ -103,6 +108,19 @@ def test_only_intended_pads_touched(escapes: list[Escape], pads: list[Pad]) -> N
 	by_pad = {(ref, number): net for ref, number, net in touched}
 	pad_nets = {(pad.ref, pad.number): pad.net for pad in pads}
 	assert all(pad_nets[key] == net for key, net in by_pad.items())
+
+
+def test_mcu_signal_pads_fanned_out(
+	board: pcbnew.BOARD, escapes: list[Escape], pads: list[Pad]
+) -> None:
+	touched = {(ref, number) for ref, number, _ in _touched(escapes, pads)}
+	unescaped = sorted(
+		short_net(pad.net)
+		for pad in fanout_pads(part_pads(pads, MCU_REF))
+		if (pad.ref, pad.number) not in touched
+	)
+	side = Path(board.GetFileName()).stem
+	assert unescaped == sorted(ROUTER_ESCAPED_NETS[side])
 
 
 def test_every_link_data_pad_escaped(escapes: list[Escape], pads: list[Pad]) -> None:

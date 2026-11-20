@@ -11,7 +11,15 @@ from kb.finish import (
 	route_copper,
 )
 from kb.layout import Point
-from kb.route import Ripup, ViaMove, add_route, move_via, rip_up, trim_dangling
+from kb.route import (
+	Ripup,
+	ViaMove,
+	add_route,
+	drop_dangling_vias,
+	move_via,
+	rip_up,
+	trim_dangling,
+)
 from shapely.geometry import box
 
 LAYERS = ("F.Cu", "In2.Cu", "B.Cu")
@@ -127,3 +135,31 @@ def test_trim_dangling_shortens_a_free_end_to_its_last_joint() -> None:
 	)
 	trim_dangling(board, [NET])
 	assert ends(board, NET) == [((0, 0), (2, 0)), ((2, 0), (2, 2))]
+
+
+def via_positions(board: pcbnew.BOARD) -> list[Point]:
+	return sorted(
+		(pcbnew.ToMM(item.GetPosition().x), pcbnew.ToMM(item.GetPosition().y))
+		for item in board.GetTracks()
+		if item.Type() == pcbnew.PCB_VIA_T
+	)
+
+
+def test_drop_dangling_vias_keeps_vias_that_change_layer() -> None:
+	board = bare_board()
+	add_route(
+		board, Route(NET, TRACK_MM, (("B.Cu", (0, 0), (2, 0)),), ((2, 0),), LAYERS)
+	)
+	add_route(
+		board,
+		Route(
+			OTHER,
+			TRACK_MM,
+			(("B.Cu", (5, 0), (7, 0)), ("F.Cu", (7, 0), (9, 0))),
+			((7, 0),),
+			LAYERS,
+		),
+	)
+	drop_dangling_vias(board)
+	assert via_positions(board) == [(7, 0)]
+	assert ends(board, NET) == []

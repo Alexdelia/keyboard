@@ -19,6 +19,7 @@ from kb.escape import (
 	Pad,
 	is_connected,
 	mcu_ground_escapes,
+	mcu_signal_escapes,
 	mcu_supply_escapes,
 	plane_stub_escapes,
 	usb_c_escapes,
@@ -106,60 +107,7 @@ class Finish:
 	joins: tuple[str, ...] = ()
 
 
-QSPI_BUNDLE_BOX = (64.0, 37.0, 71.0, 47.5)
-FINISH: dict[Side, tuple[Finish, ...]] = {
-	"left": (
-		Finish(
-			joins=("+3V3", "/core/MUX_S2", "/MUX1_CH7", "/MUX1_CH6", "/MUX0_CH6"),
-		),
-		Finish(
-			moves=(
-				ViaMove("GND", (70.6516, 41.2529), (70.6516, 41.32)),
-				ViaMove("GND", (80.9375, 26.96), (80.896, 26.916)),
-			),
-			ripups=(
-				Ripup("+3V3", (64.85, 34.34, 64.87, 34.66)),
-				Ripup("/core/QSPI_SCLK", QSPI_BUNDLE_BOX),
-				Ripup("/core/QSPI_SD0", QSPI_BUNDLE_BOX),
-				Ripup("/core/QSPI_SD1", QSPI_BUNDLE_BOX),
-				Ripup("/core/QSPI_SD3", QSPI_BUNDLE_BOX),
-				Ripup("/core/QSPI_SS", QSPI_BUNDLE_BOX),
-				Ripup("/core/MUX_S2", (68.8, 35.5, 72.0, 56.6)),
-				Ripup("/core/+1V1", (70.7, 38.4, 71.5, 40.6)),
-			),
-			joins=(
-				"/core/QSPI_SD2",
-				"/core/QSPI_SD1",
-				"/core/QSPI_SS",
-				"/core/QSPI_SD0",
-				"/core/QSPI_SD3",
-				"/core/QSPI_SCLK",
-				"/core/+1V1",
-				"/core/MUX_S2",
-				"/MUX0_CH13",
-			),
-		),
-	),
-	"right": (
-		Finish(
-			moves=(ViaMove("GND", (93.56, 51.826), (93.46, 51.926)),),
-			ripups=(
-				Ripup("/core/QSPI_SD0", (86.9, 37.25, 88.8, 40.45)),
-				Ripup("/core/+1V1", (86.9, 37.25, 88.8, 40.45)),
-				Ripup("/core/QSPI_SD2", (87.0, 37.4, 87.9, 40.6)),
-				Ripup("/core/SWCLK", (88.85, 30.4, 90.0, 31.6)),
-			),
-			joins=(
-				"/core/QSPI_SD0",
-				"/core/QSPI_SCLK",
-				"/core/+1V1",
-				"/core/XOUT",
-				"/core/SWCLK",
-				"/MUX1_CH2",
-			),
-		),
-	),
-}
+FINISH: dict[Side, tuple[Finish, ...]] = {"left": (), "right": ()}
 
 
 def _mm(vector: pcbnew.VECTOR2I) -> Point:
@@ -235,6 +183,7 @@ def board_escapes(board: pcbnew.BOARD) -> list[Escape]:
 	escapes += usb_c_escapes(
 		link, LINK_DATA_NETS, _inward(board, LINK_REF, link), pads, escapes
 	)
+	escapes += mcu_signal_escapes(mcu, pads, escapes)
 	return escapes
 
 
@@ -500,6 +449,23 @@ def add_route(board: pcbnew.BOARD, route: Route) -> None:
 		add_via(board, at, route.net)
 
 
+def _joined(
+	board: pcbnew.BOARD,
+	copper: list[Copper],
+	inside: Polygon | MultiPolygon,
+	net: str,
+	layers: tuple[str, ...],
+) -> bool:
+	while len(found := islands(copper, net)) > 1:
+		request = Request(net, nearest_pair(found), layers, profile=FINISH_PROFILE)
+		route = connect(copper, inside, request)
+		if route is None:
+			return False
+		add_route(board, route)
+		copper += route_copper(route)
+	return True
+
+
 def join_net(
 	board: pcbnew.BOARD,
 	copper: list[Copper],
@@ -507,13 +473,16 @@ def join_net(
 	net: str,
 	layers: tuple[str, ...],
 ) -> None:
-	while len(found := islands(copper, net)) > 1:
-		request = Request(net, nearest_pair(found), layers, profile=FINISH_PROFILE)
-		route = connect(copper, inside, request)
-		if route is None:
-			raise RuntimeError(f"no finishing route for {net}")
-		add_route(board, route)
-		copper += route_copper(route)
+	if not _joined(board, copper, inside, net, layers):
+		raise RuntimeError(f"no finishing route for {net}")
+
+
+def join_leftovers(board: pcbnew.BOARD, stack: Stack) -> None:
+	layers = routing_layers(stack)
+	copper = board_copper(board, layers)
+	inside = board_shape(board)
+	for net in sorted({item.net for item in copper} - {"", GROUND_NET}):
+		_joined(board, copper, inside, net, layers)
 
 
 def _segment_line(item: pcbnew.PCB_TRACK) -> LineString:
@@ -601,6 +570,34 @@ def trim_dangling(board: pcbnew.BOARD, nets: Sequence[str]) -> None:
 			pass
 
 
+def _attachments(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> int:
+	at = _mm(via.GetPosition())
+	return sum(
+		track.GetNetname() == via.GetNetname() and _covers(track, at, track.GetLayer())
+		for track in tracks
+	)
+
+
+def drop_dangling_vias(board: pcbnew.BOARD) -> None:
+	zoned = {zone.GetNetname() for zone in board.Zones()}
+	items = list(board.GetTracks())
+	tracks = [item for item in items if not isinstance(item, pcbnew.PCB_VIA)]
+	dangling = [
+		item
+		for item in items
+		if isinstance(item, pcbnew.PCB_VIA)
+		and item.GetNetname() not in zoned
+		and _attachments(item, tracks) <= 1
+	]
+	nets = sorted({via.GetNetname() for via in dangling})
+	for via in dangling:
+		board.Delete(via)
+	for track in tracks:
+		if track.GetNetname() in nets:
+			track.SetLocked(False)
+	trim_dangling(board, nets)
+
+
 def finish(board: pcbnew.BOARD, stack: Stack, plan: Finish) -> None:
 	for move in plan.moves:
 		move_via(board, move)
@@ -632,6 +629,8 @@ def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcS
 	autoroute(board, stack, work_dir, passes)
 	for plan in FINISH[side]:
 		finish(board, stack, plan)
+	join_leftovers(board, stack)
+	drop_dangling_vias(board)
 	_planes(board, board_dir, side)
 	save_board(board, target, stack)
 	return drc(target)
