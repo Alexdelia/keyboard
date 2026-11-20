@@ -150,6 +150,7 @@ def test_drop_dangling_vias_keeps_vias_that_change_layer() -> None:
 	add_route(
 		board, Route(NET, TRACK_MM, (("B.Cu", (0, 0), (2, 0)),), ((2, 0),), LAYERS)
 	)
+	add_route(board, segment(NET, "B.Cu", (2, 0), (2, 2)))
 	add_route(
 		board,
 		Route(

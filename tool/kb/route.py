@@ -570,12 +570,14 @@ def trim_dangling(board: pcbnew.BOARD, nets: Sequence[str]) -> None:
 			pass
 
 
-def _attachments(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> int:
+def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> set[int]:
 	at = _mm(via.GetPosition())
-	return sum(
-		track.GetNetname() == via.GetNetname() and _covers(track, at, track.GetLayer())
+	return {
+		track.GetLayer()
 		for track in tracks
-	)
+		if track.GetNetname() == via.GetNetname()
+		and _covers(track, at, track.GetLayer())
+	}
 
 
 def drop_dangling_vias(board: pcbnew.BOARD) -> None:
@@ -587,7 +589,7 @@ def drop_dangling_vias(board: pcbnew.BOARD) -> None:
 		for item in items
 		if isinstance(item, pcbnew.PCB_VIA)
 		and item.GetNetname() not in zoned
-		and _attachments(item, tracks) <= 1
+		and len(_joined_layers(item, tracks)) <= 1
 	]
 	nets = sorted({via.GetNetname() for via in dangling})
 	for via in dangling:
