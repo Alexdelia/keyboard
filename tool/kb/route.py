@@ -124,8 +124,85 @@ class Finish:
 
 
 FINISH: dict[Side, tuple[Finish, ...]] = {
-	"left": (Finish(moves=(ViaMove("GND", (75.1, 55.2802), (75.165, 55.345)),)),),
-	"right": (Finish(moves=(ViaMove("GND", (91.0585, 51.825), (91.0085, 51.775)),)),),
+	"left": (
+		Finish(
+			moves=(ViaMove("GND", (75.1, 55.2802), (75.165, 55.345)),),
+			routes=(
+				HandRoute(
+					"/core/RUN",
+					(
+						Leg("B.Cu", ((77.885, 29.4), (77.885, 28.55))),
+						Leg(
+							"F.Cu",
+							(
+								(77.885, 28.55),
+								(83.4, 23.035),
+								(83.4, 19.875),
+								(86.0, 17.275),
+							),
+						),
+						Leg("B.Cu", ((86.0, 17.275),)),
+					),
+				),
+			),
+		),
+	),
+	"right": (
+		Finish(
+			moves=(ViaMove("GND", (91.0585, 51.825), (91.0085, 51.775)),),
+			ripups=(Ripup("/MUX0_CH1", (85.5, 53.3, 94.45, 56.45)),),
+			routes=(
+				HandRoute(
+					"/MUX0_CH1",
+					(
+						Leg(
+							"B.Cu",
+							((85.9375, 53.125), (85.7375, 53.125), (85.5375, 53.325)),
+						),
+						Leg(
+							"F.Cu",
+							(
+								(85.5375, 53.325),
+								(86.3875, 53.325),
+								(89.4875, 56.425),
+								(94.4375, 56.425),
+							),
+						),
+					),
+				),
+				HandRoute(
+					"/MUX0_CH5",
+					(
+						Leg("B.Cu", ((87.375, 55.725), (87.95, 55.725))),
+						Leg(
+							"F.Cu",
+							(
+								(87.95, 55.725),
+								(87.95, 64.05),
+								(103.75, 79.85),
+								(115.9, 79.85),
+							),
+						),
+						Leg("B.Cu", ((115.9, 79.85), (116.425, 79.85))),
+					),
+				),
+				HandRoute(
+					"/MUX1_CH10",
+					(
+						Leg(
+							"B.Cu",
+							((73.5625, 74.625), (73.075, 74.625), (72.95, 74.5)),
+						),
+						Leg(
+							"F.Cu",
+							((72.95, 74.5), (71.5, 75.95), (71.5, 91.0), (34.9, 127.6)),
+						),
+						Leg("B.Cu", ((34.9, 127.6), (35.204, 126.685))),
+					),
+				),
+			),
+		),
+	),
 }
 FINISH_ONLY = "finish"
 
@@ -410,14 +487,42 @@ def routing_layers(stack: Stack) -> tuple[str, ...]:
 	return tuple(layer.name for layer in stack.copper if not layer.plane)
 
 
-def move_via(board: pcbnew.BOARD, move: ViaMove) -> None:
-	vias = [
+def _vias_at(board: pcbnew.BOARD, net: str, at: Point) -> list[pcbnew.PCB_VIA]:
+	return [
 		item
 		for item in board.GetTracks()
 		if isinstance(item, pcbnew.PCB_VIA)
-		and item.GetNetname() == move.net
-		and math.dist(_mm(item.GetPosition()), move.at) < VIA_MATCH_TOLERANCE_MM
+		and item.GetNetname() == net
+		and math.dist(_mm(item.GetPosition()), at) < VIA_MATCH_TOLERANCE_MM
 	]
+
+
+def _same_points(found: Sequence[Point], wanted: Sequence[Point]) -> bool:
+	return all(
+		math.dist(a, b) < VIA_MATCH_TOLERANCE_MM
+		for a, b in zip(found, wanted, strict=True)
+	)
+
+
+def _has_track(
+	board: pcbnew.BOARD, net: str, layer: str, ends: tuple[Point, Point]
+) -> bool:
+	return any(
+		not isinstance(item, pcbnew.PCB_VIA)
+		and item.GetNetname() == net
+		and item.GetLayerName() == layer
+		and any(
+			_same_points((_mm(item.GetStart()), _mm(item.GetEnd())), order)
+			for order in (ends, ends[::-1])
+		)
+		for item in board.GetTracks()
+	)
+
+
+def move_via(board: pcbnew.BOARD, move: ViaMove) -> None:
+	vias = _vias_at(board, move.net, move.at)
+	if not vias and len(_vias_at(board, move.net, move.to)) == 1:
+		return
 	if len(vias) != 1:
 		raise ValueError(f"expected one {move.net} via at {move.at}, found {len(vias)}")
 	(via,) = vias
@@ -451,14 +556,14 @@ def rip_up(board: pcbnew.BOARD, ripup: Ripup) -> None:
 		and not item.IsLocked()
 		and all(_within(point, ripup.box) for point in _ends(item))
 	]
-	if not doomed:
-		raise ValueError(f"nothing to rip up for {ripup.net} in {ripup.box}")
 	for item in doomed:
 		board.Delete(item)
 
 
 def add_route(board: pcbnew.BOARD, route: Route) -> None:
 	for layer, start, end in route.segments:
+		if _has_track(board, route.net, layer, (start, end)):
+			continue
 		item = pcbnew.PCB_TRACK(board)
 		item.SetStart(_vector(start))
 		item.SetEnd(_vector(end))
@@ -467,7 +572,8 @@ def add_route(board: pcbnew.BOARD, route: Route) -> None:
 		item.SetNet(_net(board, route.net))
 		board.Add(item)
 	for at in route.vias:
-		add_via(board, at, route.net)
+		if not _vias_at(board, route.net, at):
+			add_via(board, at, route.net)
 
 
 def _joined(
