@@ -7,6 +7,7 @@ import tempfile
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 
 import pcbnew
@@ -21,7 +22,9 @@ from kb.escape import (
 	mcu_ground_escapes,
 	mcu_signal_escapes,
 	mcu_supply_escapes,
+	mcu_usb_escapes,
 	plane_stub_escapes,
+	track_width,
 	usb_c_escapes,
 )
 from kb.finish import (
@@ -101,13 +104,30 @@ class Ripup:
 
 
 @dataclass(frozen=True)
+class Leg:
+	layer: str
+	points: tuple[Point, ...]
+
+
+@dataclass(frozen=True)
+class HandRoute:
+	net: str
+	legs: tuple[Leg, ...]
+
+
+@dataclass(frozen=True)
 class Finish:
 	moves: tuple[ViaMove, ...] = ()
 	ripups: tuple[Ripup, ...] = ()
+	routes: tuple[HandRoute, ...] = ()
 	joins: tuple[str, ...] = ()
 
 
-FINISH: dict[Side, tuple[Finish, ...]] = {"left": (), "right": ()}
+FINISH: dict[Side, tuple[Finish, ...]] = {
+	"left": (Finish(moves=(ViaMove("GND", (75.1, 55.2802), (75.165, 55.345)),)),),
+	"right": (Finish(moves=(ViaMove("GND", (91.0585, 51.825), (91.0085, 51.775)),)),),
+}
+FINISH_ONLY = "finish"
 
 
 def _mm(vector: pcbnew.VECTOR2I) -> Point:
@@ -176,6 +196,7 @@ def board_escapes(board: pcbnew.BOARD) -> list[Escape]:
 	pads = board_pads(board)
 	mcu = part_pads(pads, MCU_REF)
 	escapes = mcu_ground_escapes(mcu, pads, EXPOSED_VIA_PITCH_MM)
+	escapes += mcu_usb_escapes(mcu, pads, escapes)
 	escapes += mcu_supply_escapes(mcu, pads, escapes)
 	for ref in ROUTER_BLIND_REFS:
 		escapes += plane_stub_escapes(part_pads(pads, ref), pads, escapes, GROUND_NET)
@@ -580,6 +601,12 @@ def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> s
 	}
 
 
+def drop_empty_tracks(board: pcbnew.BOARD) -> None:
+	for item in list(board.GetTracks()):
+		if not isinstance(item, pcbnew.PCB_VIA) and item.GetLength() == 0:
+			board.Delete(item)
+
+
 def drop_dangling_vias(board: pcbnew.BOARD) -> None:
 	zoned = {zone.GetNetname() for zone in board.Zones()}
 	items = list(board.GetTracks())
@@ -600,12 +627,24 @@ def drop_dangling_vias(board: pcbnew.BOARD) -> None:
 	trim_dangling(board, nets)
 
 
+def hand_route(route: HandRoute, layers: tuple[str, ...]) -> Route:
+	segments = tuple(
+		(leg.layer, start, end)
+		for leg in route.legs
+		for start, end in pairwise(leg.points)
+	)
+	vias = tuple(leg.points[-1] for leg in route.legs[:-1])
+	return Route(route.net, track_width(route.net), segments, vias, layers)
+
+
 def finish(board: pcbnew.BOARD, stack: Stack, plan: Finish) -> None:
 	for move in plan.moves:
 		move_via(board, move)
 	for ripup in plan.ripups:
 		rip_up(board, ripup)
 	layers = routing_layers(stack)
+	for route in plan.routes:
+		add_route(board, hand_route(route, layers))
 	copper = board_copper(board, layers)
 	inside = board_shape(board)
 	for net in plan.joins:
@@ -623,17 +662,30 @@ def autoroute(board: pcbnew.BOARD, stack: Stack, work_dir: Path, passes: int) ->
 		raise RuntimeError("ses import failed")
 
 
+def tidy(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
+	drop_empty_tracks(board)
+	drop_dangling_vias(board)
+	_planes(board, board_dir, side)
+
+
 def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcSummary:
 	target = board_dir / "pcb" / side / f"{side}.kicad_pcb"
 	board = pcbnew.LoadBoard(str(target))
 	stack = load_stack(board_dir)
 	prepare(board, board_dir, side)
 	autoroute(board, stack, work_dir, passes)
+	join_leftovers(board, stack)
+	tidy(board, board_dir, side)
+	save_board(board, target, stack)
+	return drc(target)
+
+
+def finish_half(board_dir: Path, side: Side, target: Path) -> DrcSummary:
+	board = pcbnew.LoadBoard(str(target))
+	stack = load_stack(board_dir)
 	for plan in FINISH[side]:
 		finish(board, stack, plan)
-	join_leftovers(board, stack)
-	drop_dangling_vias(board)
-	_planes(board, board_dir, side)
+	tidy(board, board_dir, side)
 	save_board(board, target, stack)
 	return drc(target)
 
@@ -641,8 +693,14 @@ def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcS
 def main(argv: list[str]) -> None:
 	sides = [side for side in SIDES if side in argv[1:]] or list(SIDES)
 	for side in sides:
-		with tempfile.TemporaryDirectory() as scratch:
-			print(side, route_half(BOARD_DIR, side, Path(scratch), ROUTER_PASSES[side]))
+		target = BOARD_DIR / "pcb" / side / f"{side}.kicad_pcb"
+		if FINISH_ONLY not in argv[1:]:
+			with tempfile.TemporaryDirectory() as scratch:
+				print(
+					side,
+					route_half(BOARD_DIR, side, Path(scratch), ROUTER_PASSES[side]),
+				)
+		print(side, finish_half(BOARD_DIR, side, target))
 
 
 if __name__ == "__main__":

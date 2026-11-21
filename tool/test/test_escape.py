@@ -27,11 +27,8 @@ from shapely.geometry import Point as Spot
 
 BOARD_DIR = Path(__file__).parents[2] / "keyboard" / "icarus"
 SIDES: tuple[Side, ...] = ("left", "right")
-PARTNER_LINKED_NETS = ("+3V3", "XIN")
-ROUTER_ESCAPED_NETS: dict[str, tuple[str, ...]] = {
-	"left": (),
-	"right": ("QSPI_SD0",),
-}
+PARTNER_LINKED_NETS = ("+3V3", "XIN", "USB_DP", "USB_DM")
+USB_SERIES_REFS = {"USB_DP": "R3", "USB_DM": "R4"}
 ESCAPED_LINK_NETS = (*LINK_DATA_NETS, "LINK_VBUS")
 OCTILINEAR_TOLERANCE_DEG = 0.01
 ENDPOINT_TOLERANCE_MM = 0.01
@@ -110,17 +107,21 @@ def test_only_intended_pads_touched(escapes: list[Escape], pads: list[Pad]) -> N
 	assert all(pad_nets[key] == net for key, net in by_pad.items())
 
 
-def test_mcu_signal_pads_fanned_out(
-	board: pcbnew.BOARD, escapes: list[Escape], pads: list[Pad]
-) -> None:
+def test_mcu_signal_pads_fanned_out(escapes: list[Escape], pads: list[Pad]) -> None:
 	touched = {(ref, number) for ref, number, _ in _touched(escapes, pads)}
-	unescaped = sorted(
+	unescaped = [
 		short_net(pad.net)
 		for pad in fanout_pads(part_pads(pads, MCU_REF))
 		if (pad.ref, pad.number) not in touched
-	)
-	side = Path(board.GetFileName()).stem
-	assert unescaped == sorted(ROUTER_ESCAPED_NETS[side])
+	]
+	assert unescaped == []
+
+
+def test_usb_lines_reach_series_resistors(
+	escapes: list[Escape], pads: list[Pad]
+) -> None:
+	touched = {(ref, short_net(net)) for ref, _, net in _touched(escapes, pads)}
+	assert {(ref, net) for net, ref in USB_SERIES_REFS.items()} <= touched
 
 
 def test_every_link_data_pad_escaped(escapes: list[Escape], pads: list[Pad]) -> None:
