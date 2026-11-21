@@ -53,7 +53,7 @@ def test_right_grid_mirrored(board: Board) -> None:
 
 def test_left_thumb(board: Board) -> None:
 	left = half_positions(board, "left")
-	assert_at(by_id(left, "thumb0"), -15.2, 51.5, 10.5)
+	assert_at(by_id(left, "thumb0"), -15.2, 51.5, 11)
 	assert_at(by_id(left, "thumb3"), 45.6, 63.3, -29)
 
 

@@ -18,6 +18,8 @@ from shapely.ops import unary_union
 from kb.escape import (
 	Escape,
 	Pad,
+	Track,
+	Via,
 	is_connected,
 	mcu_ground_escapes,
 	mcu_signal_escapes,
@@ -67,6 +69,19 @@ VIA_VIA_CLEARANCE_MM = (
 	- VIA_DIAMETER_MM
 	+ ROUTER_VIA_MARGIN_MM
 )
+ANALOG_NET = re.compile(r"/(core/)?MUX\d_(CH\d+|COM)$")
+USB_NET = re.compile(r"/core/USB_D[PM](_CONN)?$")
+CRYSTAL_NET = re.compile(r"/core/(XIN|XOUT|XTAL_OUT)$")
+ANY_NET = re.compile("")
+NOISY_NET = re.compile(r"/core/(USB_D[PM](_CONN)?|XIN|XOUT|XTAL_OUT)$")
+PLANE_SHIELDED_LAYERS = ("F.Cu", "B.Cu")
+NOISE_SHADOW_LAYER = "In2.Cu"
+NOISE_CASTING_LAYER = "B.Cu"
+NOISE_SHADOW_ZONE = "noise_shadow"
+NOISE_SHADOW_TOLERANCE_MM = 0.02
+NOISY_ROUTER_PASSES = 4
+NOISE_CLEARANCE_MM = 1.0
+DSN_CLASS_NAME = re.compile(r"^    \(class (\S+)", re.MULTILINE)
 ROUTER_PASSES: dict[Side, int] = {"left": 14, "right": 16}
 VIA_MATCH_TOLERANCE_MM = 0.01
 END_TOLERANCE_MM = 1e-3
@@ -88,6 +103,21 @@ class DrcSummary:
 			f"violations {sum(self.violations.values())} ({kinds}), "
 			f"unconnected {self.unconnected}, parity {self.parity}"
 		)
+
+
+@dataclass(frozen=True)
+class RouterClass:
+	name: str
+	nets: re.Pattern[str]
+	layers: tuple[str, ...] | None
+
+
+ROUTER_CLASSES = (
+	RouterClass("analog", ANALOG_NET, None),
+	RouterClass("usb", USB_NET, PLANE_SHIELDED_LAYERS),
+	RouterClass("crystal", CRYSTAL_NET, PLANE_SHIELDED_LAYERS),
+)
+SEPARATED_CLASSES = (("analog", "usb"), ("analog", "crystal"))
 
 
 @dataclass(frozen=True)
@@ -123,87 +153,7 @@ class Finish:
 	joins: tuple[str, ...] = ()
 
 
-FINISH: dict[Side, tuple[Finish, ...]] = {
-	"left": (
-		Finish(
-			moves=(ViaMove("GND", (75.1, 55.2802), (75.165, 55.345)),),
-			routes=(
-				HandRoute(
-					"/core/RUN",
-					(
-						Leg("B.Cu", ((77.885, 29.4), (77.885, 28.55))),
-						Leg(
-							"F.Cu",
-							(
-								(77.885, 28.55),
-								(83.4, 23.035),
-								(83.4, 19.875),
-								(86.0, 17.275),
-							),
-						),
-						Leg("B.Cu", ((86.0, 17.275),)),
-					),
-				),
-			),
-		),
-	),
-	"right": (
-		Finish(
-			moves=(ViaMove("GND", (91.0585, 51.825), (91.0085, 51.775)),),
-			ripups=(Ripup("/MUX0_CH1", (85.5, 53.3, 94.45, 56.45)),),
-			routes=(
-				HandRoute(
-					"/MUX0_CH1",
-					(
-						Leg(
-							"B.Cu",
-							((85.9375, 53.125), (85.7375, 53.125), (85.5375, 53.325)),
-						),
-						Leg(
-							"F.Cu",
-							(
-								(85.5375, 53.325),
-								(86.3875, 53.325),
-								(89.4875, 56.425),
-								(94.4375, 56.425),
-							),
-						),
-					),
-				),
-				HandRoute(
-					"/MUX0_CH5",
-					(
-						Leg("B.Cu", ((87.375, 55.725), (87.95, 55.725))),
-						Leg(
-							"F.Cu",
-							(
-								(87.95, 55.725),
-								(87.95, 64.05),
-								(103.75, 79.85),
-								(115.9, 79.85),
-							),
-						),
-						Leg("B.Cu", ((115.9, 79.85), (116.425, 79.85))),
-					),
-				),
-				HandRoute(
-					"/MUX1_CH10",
-					(
-						Leg(
-							"B.Cu",
-							((73.5625, 74.625), (73.075, 74.625), (72.95, 74.5)),
-						),
-						Leg(
-							"F.Cu",
-							((72.95, 74.5), (71.5, 75.95), (71.5, 91.0), (34.9, 127.6)),
-						),
-						Leg("B.Cu", ((34.9, 127.6), (35.204, 126.685))),
-					),
-				),
-			),
-		),
-	),
-}
+FINISH: dict[Side, tuple[Finish, ...]] = {"left": (), "right": ()}
 FINISH_ONLY = "finish"
 
 
@@ -446,20 +396,57 @@ def _class_block(name: str, nets: Sequence[str], body: str) -> str:
 	return f"    (class {header}\n      (circuit\n{body}    )\n"
 
 
+def _router_class(net: str) -> RouterClass | None:
+	return next((cls for cls in ROUTER_CLASSES if cls.nets.search(net)), None)
+
+
+def _class_layers(net: str, default: tuple[str, ...]) -> tuple[str, ...]:
+	cls = _router_class(net)
+	return cls.layers if cls and cls.layers else default
+
+
+def _on_layers(body: str, layers: Sequence[str]) -> str:
+	use = f"(use_layer {' '.join(layers)})"
+	return body.replace("\n      )\n", f"\n{DSN_INDENT}{use}\n      )\n", 1)
+
+
 def _restricted_class(match: re.Match, stack: Stack) -> str:
 	name, *nets = match.group(1).split()
 	body = match.group(2)
 	planes = set(stack.planes.values())
-	routed = [net for net in nets if net not in planes]
-	layers = " ".join(layer.name for layer in stack.copper if not layer.plane)
-	restricted = body.replace(
-		"\n      )\n", f"\n{DSN_INDENT}(use_layer {layers})\n      )\n", 1
-	)
-	blocks = [_class_block(name, routed, restricted)] if routed else []
+	layers = routing_layers(stack)
+	routed = [net for net in nets if net not in planes and not _router_class(net)]
+	blocks = [_class_block(name, routed, _on_layers(body, layers))] if routed else []
+	for cls in ROUTER_CLASSES:
+		members = [net for net in nets if _router_class(net) == cls]
+		if members:
+			body_on_layers = _on_layers(body, _class_layers(members[0], layers))
+			blocks.append(_class_block(cls.name, members, body_on_layers))
 	blocks += [
 		_class_block(f"plane_{net}", [net], body) for net in nets if net in planes
 	]
 	return "".join(blocks)
+
+
+def _separation_block(first: str, second: str) -> str:
+	clearance = f"{NOISE_CLEARANCE_MM * DSN_UNITS_PER_MM:g}"
+	return (
+		f"    (class_class\n      (classes {first} {second})\n"
+		f"      (rule\n{DSN_INDENT}(clearance {clearance})\n      )\n    )\n"
+	)
+
+
+def _class_separation(dsn: str) -> str:
+	present = set(DSN_CLASS_NAME.findall(dsn))
+	rules = "".join(
+		_separation_block(first, second)
+		for first, second in SEPARATED_CLASSES
+		if {first, second} <= present
+	)
+	end = max((found.end() for found in DSN_CLASS.finditer(dsn)), default=None)
+	if end is None:
+		return dsn
+	return dsn[:end] + rules + dsn[end:]
 
 
 def _via_spacing(dsn: str) -> str:
@@ -472,8 +459,8 @@ def _via_spacing(dsn: str) -> str:
 def plane_dsn(dsn: str, stack: Stack) -> str:
 	for layer in stack.planes:
 		dsn = _plane_layer_as_signal(dsn, layer)
-	return _via_spacing(
-		DSN_CLASS.sub(lambda match: _restricted_class(match, stack), dsn)
+	return _class_separation(
+		_via_spacing(DSN_CLASS.sub(lambda match: _restricted_class(match, stack), dsn))
 	)
 
 
@@ -604,12 +591,21 @@ def join_net(
 		raise RuntimeError(f"no finishing route for {net}")
 
 
-def join_leftovers(board: pcbnew.BOARD, stack: Stack) -> None:
+def join_leftovers(
+	board: pcbnew.BOARD, stack: Stack, nets: re.Pattern[str] = ANY_NET
+) -> None:
 	layers = routing_layers(stack)
 	copper = board_copper(board, layers)
 	inside = board_shape(board)
 	for net in sorted({item.net for item in copper} - {"", GROUND_NET}):
-		_joined(board, copper, inside, net, layers)
+		if nets.search(net):
+			_joined(board, copper, inside, net, _class_layers(net, layers))
+
+
+def lock_routing(board: pcbnew.BOARD, nets: re.Pattern[str]) -> None:
+	for item in board.GetTracks():
+		if nets.search(item.GetNetname()):
+			item.SetLocked(True)
 
 
 def _segment_line(item: pcbnew.PCB_TRACK) -> LineString:
@@ -768,6 +764,77 @@ def autoroute(board: pcbnew.BOARD, stack: Stack, work_dir: Path, passes: int) ->
 		raise RuntimeError("ses import failed")
 
 
+def _is_noisy(item: pcbnew.BOARD_CONNECTED_ITEM) -> bool:
+	return bool(NOISY_NET.search(item.GetNetname()))
+
+
+def noisy_routing(board: pcbnew.BOARD) -> Escape:
+	routed = [
+		item for item in board.GetTracks() if _is_noisy(item) and not item.IsLocked()
+	]
+	tracks = tuple(
+		Track(
+			_mm(item.GetStart()),
+			_mm(item.GetEnd()),
+			pcbnew.ToMM(item.GetWidth()),
+			item.GetLayerName(),
+			item.GetNetname(),
+		)
+		for item in routed
+		if item.Type() == pcbnew.PCB_TRACE_T
+	)
+	vias = tuple(
+		Via(_mm(item.GetPosition()), item.GetNetname())
+		for item in routed
+		if item.Type() == pcbnew.PCB_VIA_T
+	)
+	return Escape(tracks, vias)
+
+
+def noise_shadow(board: pcbnew.BOARD) -> Polygon | MultiPolygon:
+	layer = board.GetLayerID(NOISE_CASTING_LAYER)
+	tracks = [
+		item
+		for item in board.GetTracks()
+		if item.Type() == pcbnew.PCB_TRACE_T
+		and item.GetLayer() == layer
+		and _is_noisy(item)
+	]
+	pads = [
+		pad
+		for footprint in board.GetFootprints()
+		for pad in footprint.Pads()
+		if pad.IsOnLayer(layer) and _is_noisy(pad)
+	]
+	casting = unary_union([copper_shape(item) for item in [*tracks, *pads]])
+	return casting.buffer(NOISE_CLEARANCE_MM).simplify(NOISE_SHADOW_TOLERANCE_MM)
+
+
+def add_noise_shadow(board: pcbnew.BOARD, shadow: Polygon | MultiPolygon) -> None:
+	polygons = shadow.geoms if isinstance(shadow, MultiPolygon) else [shadow]
+	for polygon in polygons:
+		zone = pcbnew.ZONE(board)
+		zone.SetIsRuleArea(True)
+		zone.SetDoNotAllowTracks(True)
+		zone.SetDoNotAllowVias(False)
+		zone.SetDoNotAllowPads(False)
+		zone.SetDoNotAllowFootprints(False)
+		zone.SetDoNotAllowZoneFills(False)
+		zone.SetLayer(board.GetLayerID(NOISE_SHADOW_LAYER))
+		zone.SetZoneName(NOISE_SHADOW_ZONE)
+		outline = zone.Outline()
+		outline.NewOutline()
+		for point in polygon.exterior.coords[:-1]:
+			outline.Append(_vector(point))
+		board.Add(zone)
+
+
+def drop_noise_shadow(board: pcbnew.BOARD) -> None:
+	for zone in list(board.Zones()):
+		if zone.GetZoneName() == NOISE_SHADOW_ZONE:
+			board.Delete(zone)
+
+
 def tidy(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	drop_empty_tracks(board)
 	drop_dangling_vias(board)
@@ -779,7 +846,15 @@ def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcS
 	board = pcbnew.LoadBoard(str(target))
 	stack = load_stack(board_dir)
 	prepare(board, board_dir, side)
+	autoroute(board, stack, work_dir, NOISY_ROUTER_PASSES)
+	noisy = noisy_routing(board)
+	prepare(board, board_dir, side)
+	add_escape(board, noisy)
+	join_leftovers(board, stack, NOISY_NET)
+	lock_routing(board, NOISY_NET)
+	add_noise_shadow(board, noise_shadow(board))
 	autoroute(board, stack, work_dir, passes)
+	drop_noise_shadow(board)
 	join_leftovers(board, stack)
 	tidy(board, board_dir, side)
 	save_board(board, target, stack)

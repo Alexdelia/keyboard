@@ -197,6 +197,14 @@ def test_thumb_orientation_sign_per_side() -> None:
 	assert signs == {"left": -29, "right": 29}
 
 
+def test_footprints_sit_at_whole_degrees(board: pcbnew.BOARD) -> None:
+	assert [
+		footprint.GetReference()
+		for footprint in board.GetFootprints()
+		if not footprint.GetOrientationDegrees().is_integer()
+	] == []
+
+
 def test_sensor_offset_and_layer(
 	board: pcbnew.BOARD, positions: list[KeyPosition]
 ) -> None:
