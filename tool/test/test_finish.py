@@ -12,11 +12,15 @@ from kb.finish import (
 )
 from kb.layout import Point
 from kb.route import (
+	NOISE_CLEARANCE_MM,
 	Ripup,
+	RoutingArea,
 	ViaMove,
 	add_route,
+	drop_dangling_tracks,
 	drop_dangling_vias,
 	move_via,
+	noise_guard,
 	rip_up,
 	trim_dangling,
 )
@@ -125,6 +129,16 @@ def test_rip_up_takes_unlocked_tracks_of_its_net_inside_the_box() -> None:
 	assert ends(board, OTHER) == [((0, 0.5), (1, 0.5))]
 
 
+def test_rip_up_including_locked_takes_locked_tracks_too() -> None:
+	board = bare_board()
+	add_route(board, segment(NET, "B.Cu", (0, 0), (1, 0)))
+	add_route(board, segment(NET, "B.Cu", (0, 0), (5, 0)))
+	for item in board.GetTracks():
+		item.SetLocked(LOCKED)
+	rip_up(board, Ripup(NET, (-1, -1, 2, 2), include_locked=True))
+	assert ends(board, NET) == [((0, 0), (5, 0))]
+
+
 def test_trim_dangling_shortens_a_free_end_to_its_last_joint() -> None:
 	board = bare_board()
 	add_route(
@@ -164,3 +178,68 @@ def test_drop_dangling_vias_keeps_vias_that_change_layer() -> None:
 	drop_dangling_vias(board)
 	assert via_positions(board) == [(7, 0)]
 	assert ends(board, NET) == []
+
+
+def test_drop_dangling_vias_counts_a_track_ending_inside_the_via_pad() -> None:
+	board = bare_board()
+	add_route(
+		board, Route(NET, TRACK_MM, (("B.Cu", (0, 0), (2, 0)),), ((2, 0),), LAYERS)
+	)
+	add_route(board, segment(NET, "F.Cu", (2.2, 0.1), (4, 0.1)))
+	drop_dangling_vias(board)
+	assert via_positions(board) == [(2, 0)]
+
+
+def test_drop_dangling_tracks_trims_locked_stubs() -> None:
+	board = bare_board()
+	add_route(board, segment(NET, "B.Cu", (0, 0), (2, 0)))
+	for item in board.GetTracks():
+		item.SetLocked(LOCKED)
+	drop_dangling_tracks(board)
+	assert ends(board, NET) == []
+
+
+def test_noise_guard_keeps_analog_nets_off_noisy_copper_on_its_plane_side() -> None:
+	usb = Copper("/core/USB_DP", ("B.Cu",), box(0, 0, 1, 0.2))
+	area = RoutingArea(INSIDE, noise_guard([usb, pad(NET, 5, 5)]))
+	(guard,) = area.obstacles("/core/MUX0_COM")
+	assert guard.layers == ("In2.Cu", "B.Cu")
+	assert guard.shape.contains(box(0, 0, 1, 0.2).buffer(NOISE_CLEARANCE_MM * 0.99))
+	assert area.obstacles(NET) == ()
+
+
+def add_pad(board: pcbnew.BOARD, net: str, at: Point) -> None:
+	footprint = pcbnew.FOOTPRINT(board)
+	item = pcbnew.PAD(footprint)
+	item.SetSize(pcbnew.VECTOR2I(pcbnew.FromMM(1), pcbnew.FromMM(1)))
+	item.SetShape(pcbnew.PAD_SHAPE_RECT)
+	item.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+	layers = pcbnew.LSET()
+	layers.AddLayer(board.GetLayerID(PAD_LAYER))
+	item.SetLayerSet(layers)
+	item.SetNet(board.FindNet(net))
+	footprint.Add(item)
+	footprint.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(at[0]), pcbnew.FromMM(at[1])))
+	board.Add(footprint)
+
+
+def test_drop_dangling_vias_keeps_a_via_inside_a_pad_of_its_net() -> None:
+	board = bare_board()
+	add_pad(board, NET, (2, 0))
+	add_route(
+		board, Route(NET, TRACK_MM, (("F.Cu", (0, 0), (2, 0)),), ((2, 0),), LAYERS)
+	)
+	drop_dangling_vias(board)
+	assert via_positions(board) == [(2, 0)]
+
+
+def test_trim_dangling_keeps_a_track_ending_within_its_width_of_a_pad() -> None:
+	board = bare_board()
+	add_pad(board, NET, (0, 0))
+	add_route(board, segment(NET, PAD_LAYER, (0.55, 0), (3, 0)))
+	add_route(
+		board, Route(NET, TRACK_MM, (("B.Cu", (3, 0), (3, 0)),), ((3, 0),), LAYERS)
+	)
+	add_route(board, segment(NET, "F.Cu", (3, 0), (5, 0)))
+	trim_dangling(board, [NET], keep_locked=False)
+	assert ((0.55, 0), (3, 0)) in ends(board, NET)

@@ -133,6 +133,7 @@ class ViaMove:
 class Ripup:
 	net: str
 	box: tuple[float, float, float, float]
+	include_locked: bool = False
 
 
 @dataclass(frozen=True)
@@ -155,7 +156,112 @@ class Finish:
 	joins: tuple[str, ...] = ()
 
 
-FINISH: dict[Side, tuple[Finish, ...]] = {"left": (), "right": ()}
+FINISH: dict[Side, tuple[Finish, ...]] = {
+	"left": (
+		Finish(
+			moves=(
+				ViaMove("GND", (66.246, 44.197), (66.15, 44.35)),
+				ViaMove("/core/QSPI_SS", (66.628, 43.475), (66.7, 43.5)),
+			),
+			ripups=(
+				Ripup("+3V3", (73.05, 39.08, 73.33, 39.36), include_locked=True),
+				Ripup("/core/+1V1", (71.0, 37.4, 71.2, 42.5)),
+				Ripup("/core/QSPI_SD3", (70.6, 39.9, 70.8, 45.8)),
+			),
+			routes=(
+				HandRoute(
+					"+3V3",
+					(
+						Leg("B.Cu", ((69.835, 40.67), (70.17, 40.67), (70.65, 41.15))),
+						Leg("In2.Cu", ((70.65, 41.15),)),
+					),
+				),
+			),
+			joins=("+3V3", "/core/+1V1", "/core/QSPI_SD3", "/core/BOOT", "/core/RUN"),
+		),
+		Finish(
+			ripups=(
+				Ripup("/core/+1V1", (67.3, 36.8, 69.9, 41.7)),
+				Ripup("/core/QSPI_SD1", (67.6, 42.6, 69.0, 43.5)),
+				Ripup("/core/QSPI_SCLK", (67.9, 37.4, 70.1, 44.2)),
+				Ripup("+3V3", (65.8, 35.9, 67.7, 38.7)),
+			),
+			joins=(
+				"/core/QSPI_SD2",
+				"/core/LINK_DP",
+				"/core/+1V1",
+				"/core/QSPI_SCLK",
+				"/core/QSPI_SD1",
+				"+3V3",
+			),
+		),
+	),
+	"right": (
+		Finish(joins=("/core/LINK_DP_CONN", "/core/LINK_DM_CONN", "/core/MUX1_COM")),
+		Finish(
+			moves=(
+				ViaMove("GND", (82.139, 26.445), (82.15, 26.35)),
+				ViaMove("/core/MUX_S3", (93.570, 50.762), (93.6, 50.3)),
+			),
+			ripups=(
+				Ripup("/MUX0_CH7", (90.1, 57.0, 99.61, 58.2), include_locked=True),
+				Ripup("/ENC_A", (84.0, 33.5, 91.4, 39.95)),
+				Ripup("/core/MUX_S0", (84.0, 36.4, 89.35, 39.6)),
+				Ripup("/core/LINK_DM", (81.0, 28.7, 86.5, 36.9)),
+				Ripup(
+					"/core/MUX1_COM", (67.85, 77.15, 67.95, 77.3), include_locked=True
+				),
+			),
+			routes=(
+				HandRoute(
+					"/MUX0_CH7",
+					(
+						Leg(
+							"B.Cu",
+							(
+								(90.147, 57.025),
+								(92.322, 59.2),
+								(98.578, 59.2),
+								(99.605, 58.173),
+							),
+						),
+						Leg("In2.Cu", ((99.605, 58.173),)),
+					),
+				),
+				HandRoute(
+					"+3V3",
+					(
+						Leg(
+							"B.Cu",
+							(
+								(92.362, 57.675),
+								(93.0, 57.675),
+								(93.5, 58.175),
+								(93.5, 58.35),
+							),
+						),
+						Leg("In2.Cu", ((93.5, 58.35),)),
+					),
+				),
+				HandRoute(
+					"/core/MUX_S2",
+					(
+						Leg("B.Cu", ((92.362, 51.175), (94.2, 51.175))),
+						Leg("In2.Cu", ((94.2, 51.175),)),
+					),
+				),
+			),
+			joins=(
+				"+3V3",
+				"/core/MUX_S2",
+				"/MUX0_CH7",
+				"/ENC_A",
+				"/core/MUX_S0",
+				"/core/LINK_DM",
+			),
+		),
+	),
+}
 FINISH_ONLY = "finish"
 
 
@@ -542,7 +648,7 @@ def rip_up(board: pcbnew.BOARD, ripup: Ripup) -> None:
 		item
 		for item in board.GetTracks()
 		if item.GetNetname() == ripup.net
-		and not item.IsLocked()
+		and (ripup.include_locked or not item.IsLocked())
 		and all(_within(point, ripup.box) for point in _ends(item))
 	]
 	for item in doomed:
@@ -565,17 +671,25 @@ def add_route(board: pcbnew.BOARD, route: Route) -> None:
 			add_via(board, at, route.net)
 
 
+@dataclass(frozen=True)
+class RoutingArea:
+	inside: Polygon | MultiPolygon
+	guard: tuple[Copper, ...] = ()
+
+	def obstacles(self, net: str) -> tuple[Copper, ...]:
+		return self.guard if ANALOG_NET.search(net) else ()
+
+
 def _joined(
 	board: pcbnew.BOARD,
 	copper: list[Copper],
-	inside: Polygon | MultiPolygon,
+	area: RoutingArea,
 	net: str,
 	layers: tuple[str, ...],
-	guard: Sequence[Copper] = (),
 ) -> bool:
 	while len(found := islands(copper, net)) > 1:
 		request = Request(net, nearest_pair(found), layers, profile=FINISH_PROFILE)
-		route = connect([*copper, *guard], inside, request)
+		route = connect([*copper, *area.obstacles(net)], area.inside, request)
 		if route is None:
 			return False
 		add_route(board, route)
@@ -586,17 +700,16 @@ def _joined(
 def join_net(
 	board: pcbnew.BOARD,
 	copper: list[Copper],
-	inside: Polygon | MultiPolygon,
+	area: RoutingArea,
 	net: str,
 	layers: tuple[str, ...],
-	guard: Sequence[Copper] = (),
 ) -> None:
-	if not _joined(board, copper, inside, net, layers, guard):
+	if not _joined(board, copper, area, net, layers):
 		raise RuntimeError(f"no finishing route for {net}")
 
 
-def noise_guard(copper: Sequence[Copper]) -> list[Copper]:
-	guard = []
+def noise_guard(copper: Sequence[Copper]) -> tuple[Copper, ...]:
+	guard: list[Copper] = []
 	for side in PLANE_SIDES:
 		noisy = [
 			item.shape
@@ -606,11 +719,11 @@ def noise_guard(copper: Sequence[Copper]) -> list[Copper]:
 		if noisy:
 			shape = unary_union(noisy).buffer(NOISE_CLEARANCE_MM)
 			guard.append(Copper(NOISE_GUARD_NET, side, shape))
-	return guard
+	return tuple(guard)
 
 
-def _guard_for(net: str, guard: Sequence[Copper]) -> Sequence[Copper]:
-	return guard if ANALOG_NET.search(net) else ()
+def routing_area(board: pcbnew.BOARD, copper: Sequence[Copper]) -> RoutingArea:
+	return RoutingArea(board_shape(board), noise_guard(copper))
 
 
 def join_leftovers(
@@ -618,20 +731,18 @@ def join_leftovers(
 ) -> None:
 	layers = routing_layers(stack)
 	copper = board_copper(board, layers)
-	inside = board_shape(board)
-	guard = noise_guard(copper)
+	area = routing_area(board, copper)
 	for net in sorted({item.net for item in copper} - {"", GROUND_NET}):
 		if nets.search(net):
-			scoped = _guard_for(net, guard)
-			_joined(board, copper, inside, net, _class_layers(net, layers), scoped)
+			_joined(board, copper, area, net, _class_layers(net, layers))
 
 
 def join_planes(board: pcbnew.BOARD, stack: Stack) -> None:
 	pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-	inside = board_shape(board)
+	area = RoutingArea(board_shape(board))
 	for layer, net in stack.planes.items():
 		layers = (*routing_layers(stack), layer)
-		_joined(board, board_copper(board, layers), inside, net, layers)
+		_joined(board, board_copper(board, layers), area, net, layers)
 
 
 def lock_routing(board: pcbnew.BOARD, nets: re.Pattern[str]) -> None:
@@ -667,8 +778,11 @@ def _net_pads(board: pcbnew.BOARD, net: str) -> list[pcbnew.PAD]:
 	]
 
 
-def _on_pad(pads: Sequence[pcbnew.PAD], point: Point, layer: int) -> bool:
-	return any(pad.IsOnLayer(layer) and pad.HitTest(_vector(point)) for pad in pads)
+def _on_pad(pads: Sequence[pcbnew.PAD], point: Point, layer: int, reach: float) -> bool:
+	accuracy = pcbnew.FromMM(reach)
+	return any(
+		pad.IsOnLayer(layer) and pad.HitTest(_vector(point), accuracy) for pad in pads
+	)
 
 
 def _joints(item: pcbnew.PCB_TRACK, others: Sequence[pcbnew.PCB_TRACK]) -> list[Point]:
@@ -699,7 +813,7 @@ def _trim_once(board: pcbnew.BOARD, net: str, keep_locked: bool) -> bool:
 			(start, end, item.SetStart),
 			(end, start, item.SetEnd),
 		):
-			if _on_pad(pads, free, layer) or any(
+			if _on_pad(pads, free, layer, _reach(item)) or any(
 				_covers(other, free, layer) for other in others
 			):
 				continue
@@ -733,9 +847,13 @@ def drop_dangling_tracks(board: pcbnew.BOARD) -> None:
 	trim_dangling(board, sorted(nets), keep_locked=False)
 
 
-def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> set[int]:
+def _joined_layers(
+	via: pcbnew.PCB_VIA,
+	tracks: Sequence[pcbnew.PCB_TRACK],
+	pads: Sequence[pcbnew.PAD],
+) -> set[int]:
 	at = _mm(via.GetPosition())
-	return {
+	by_tracks = {
 		track.GetLayer()
 		for track in tracks
 		if track.GetNetname() == via.GetNetname()
@@ -744,11 +862,22 @@ def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> s
 			or any(math.dist(end, at) <= _reach(via) for end in _ends(track))
 		)
 	}
+	by_pads = {
+		layer
+		for pad in pads
+		if pad.GetNetname() == via.GetNetname()
+		for layer in pad.GetLayerSet().CuStack()
+		if pad.HitTest(via.GetPosition())
+	}
+	return by_tracks | by_pads
 
 
 def drop_empty_tracks(board: pcbnew.BOARD) -> None:
 	for item in list(board.GetTracks()):
-		if not isinstance(item, pcbnew.PCB_VIA) and item.GetLength() == 0:
+		if (
+			not isinstance(item, pcbnew.PCB_VIA)
+			and pcbnew.ToMM(item.GetLength()) < END_TOLERANCE_MM
+		):
 			board.Delete(item)
 
 
@@ -756,12 +885,13 @@ def drop_dangling_vias(board: pcbnew.BOARD) -> None:
 	zoned = {zone.GetNetname() for zone in board.Zones()}
 	items = list(board.GetTracks())
 	tracks = [item for item in items if not isinstance(item, pcbnew.PCB_VIA)]
+	pads = [pad for footprint in board.GetFootprints() for pad in footprint.Pads()]
 	dangling = [
 		item
 		for item in items
 		if isinstance(item, pcbnew.PCB_VIA)
 		and item.GetNetname() not in zoned
-		and len(_joined_layers(item, tracks)) <= 1
+		and len(_joined_layers(item, tracks, pads)) <= 1
 	]
 	nets = sorted({via.GetNetname() for via in dangling})
 	for via in dangling:
@@ -790,13 +920,14 @@ def finish(board: pcbnew.BOARD, stack: Stack, plan: Finish) -> None:
 	layers = routing_layers(stack)
 	for route in plan.routes:
 		add_route(board, hand_route(route, layers))
+	ripped = sorted({ripup.net for ripup in plan.ripups})
+	trim_dangling(board, ripped)
 	copper = board_copper(board, layers)
-	inside = board_shape(board)
-	guard = noise_guard(copper)
+	area = routing_area(board, copper)
 	for net in plan.joins:
 		_net(board, net)
-		join_net(board, copper, inside, net, layers, _guard_for(net, guard))
-	trim_dangling(board, sorted({ripup.net for ripup in plan.ripups}))
+		join_net(board, copper, area, net, layers)
+	trim_dangling(board, ripped)
 
 
 def autoroute(board: pcbnew.BOARD, stack: Stack, work_dir: Path, passes: int) -> None:
@@ -804,8 +935,19 @@ def autoroute(board: pcbnew.BOARD, stack: Stack, work_dir: Path, passes: int) ->
 	ses = work_dir / "board.ses"
 	export_dsn(board, dsn, stack)
 	run_router(dsn, ses, passes, work_dir / "freerouting.log")
+	placement = [
+		(
+			footprint,
+			pcbnew.VECTOR2I(footprint.GetPosition()),
+			footprint.GetOrientation(),
+		)
+		for footprint in board.GetFootprints()
+	]
 	if not pcbnew.ImportSpecctraSES(board, str(ses)):
 		raise RuntimeError("ses import failed")
+	for footprint, at, orientation in placement:
+		footprint.SetOrientation(orientation)
+		footprint.SetPosition(at)
 
 
 def _is_noisy(item: pcbnew.BOARD_CONNECTED_ITEM) -> bool:
@@ -883,6 +1025,7 @@ def tidy(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	drop_empty_tracks(board)
 	drop_dangling_tracks(board)
 	drop_dangling_vias(board)
+	drop_empty_tracks(board)
 	_planes(board, board_dir, side)
 
 
