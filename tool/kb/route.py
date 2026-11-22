@@ -81,6 +81,8 @@ NOISE_SHADOW_ZONE = "noise_shadow"
 NOISE_SHADOW_TOLERANCE_MM = 0.02
 NOISY_ROUTER_PASSES = 4
 NOISE_CLEARANCE_MM = 1.0
+NOISE_GUARD_NET = "noise_guard"
+PLANE_SIDES = (("F.Cu",), ("In2.Cu", "B.Cu"))
 DSN_CLASS_NAME = re.compile(r"^    \(class (\S+)", re.MULTILINE)
 ROUTER_PASSES: dict[Side, int] = {"left": 14, "right": 16}
 VIA_MATCH_TOLERANCE_MM = 0.01
@@ -569,10 +571,11 @@ def _joined(
 	inside: Polygon | MultiPolygon,
 	net: str,
 	layers: tuple[str, ...],
+	guard: Sequence[Copper] = (),
 ) -> bool:
 	while len(found := islands(copper, net)) > 1:
 		request = Request(net, nearest_pair(found), layers, profile=FINISH_PROFILE)
-		route = connect(copper, inside, request)
+		route = connect([*copper, *guard], inside, request)
 		if route is None:
 			return False
 		add_route(board, route)
@@ -586,9 +589,28 @@ def join_net(
 	inside: Polygon | MultiPolygon,
 	net: str,
 	layers: tuple[str, ...],
+	guard: Sequence[Copper] = (),
 ) -> None:
-	if not _joined(board, copper, inside, net, layers):
+	if not _joined(board, copper, inside, net, layers, guard):
 		raise RuntimeError(f"no finishing route for {net}")
+
+
+def noise_guard(copper: Sequence[Copper]) -> list[Copper]:
+	guard = []
+	for side in PLANE_SIDES:
+		noisy = [
+			item.shape
+			for item in copper
+			if NOISY_NET.search(item.net) and set(item.layers) & set(side)
+		]
+		if noisy:
+			shape = unary_union(noisy).buffer(NOISE_CLEARANCE_MM)
+			guard.append(Copper(NOISE_GUARD_NET, side, shape))
+	return guard
+
+
+def _guard_for(net: str, guard: Sequence[Copper]) -> Sequence[Copper]:
+	return guard if ANALOG_NET.search(net) else ()
 
 
 def join_leftovers(
@@ -597,9 +619,19 @@ def join_leftovers(
 	layers = routing_layers(stack)
 	copper = board_copper(board, layers)
 	inside = board_shape(board)
+	guard = noise_guard(copper)
 	for net in sorted({item.net for item in copper} - {"", GROUND_NET}):
 		if nets.search(net):
-			_joined(board, copper, inside, net, _class_layers(net, layers))
+			scoped = _guard_for(net, guard)
+			_joined(board, copper, inside, net, _class_layers(net, layers), scoped)
+
+
+def join_planes(board: pcbnew.BOARD, stack: Stack) -> None:
+	pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+	inside = board_shape(board)
+	for layer, net in stack.planes.items():
+		layers = (*routing_layers(stack), layer)
+		_joined(board, board_copper(board, layers), inside, net, layers)
 
 
 def lock_routing(board: pcbnew.BOARD, nets: re.Pattern[str]) -> None:
@@ -654,11 +686,11 @@ def _joints(item: pcbnew.PCB_TRACK, others: Sequence[pcbnew.PCB_TRACK]) -> list[
 	]
 
 
-def _trim_once(board: pcbnew.BOARD, net: str) -> bool:
+def _trim_once(board: pcbnew.BOARD, net: str, keep_locked: bool) -> bool:
 	items = [item for item in board.GetTracks() if item.GetNetname() == net]
 	pads = _net_pads(board, net)
 	for item in items:
-		if isinstance(item, pcbnew.PCB_VIA) or item.IsLocked():
+		if isinstance(item, pcbnew.PCB_VIA) or (keep_locked and item.IsLocked()):
 			continue
 		others = [other for other in items if other is not item]
 		layer = item.GetLayer()
@@ -687,10 +719,18 @@ def _trim_once(board: pcbnew.BOARD, net: str) -> bool:
 	return False
 
 
-def trim_dangling(board: pcbnew.BOARD, nets: Sequence[str]) -> None:
+def trim_dangling(
+	board: pcbnew.BOARD, nets: Sequence[str], keep_locked: bool = True
+) -> None:
 	for net in nets:
-		while _trim_once(board, net):
+		while _trim_once(board, net, keep_locked):
 			pass
+
+
+def drop_dangling_tracks(board: pcbnew.BOARD) -> None:
+	zoned = {zone.GetNetname() for zone in board.Zones()}
+	nets = {item.GetNetname() for item in board.GetTracks()} - zoned - {""}
+	trim_dangling(board, sorted(nets), keep_locked=False)
 
 
 def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> set[int]:
@@ -699,7 +739,10 @@ def _joined_layers(via: pcbnew.PCB_VIA, tracks: Sequence[pcbnew.PCB_TRACK]) -> s
 		track.GetLayer()
 		for track in tracks
 		if track.GetNetname() == via.GetNetname()
-		and _covers(track, at, track.GetLayer())
+		and (
+			_covers(track, at, track.GetLayer())
+			or any(math.dist(end, at) <= _reach(via) for end in _ends(track))
+		)
 	}
 
 
@@ -749,9 +792,10 @@ def finish(board: pcbnew.BOARD, stack: Stack, plan: Finish) -> None:
 		add_route(board, hand_route(route, layers))
 	copper = board_copper(board, layers)
 	inside = board_shape(board)
+	guard = noise_guard(copper)
 	for net in plan.joins:
 		_net(board, net)
-		join_net(board, copper, inside, net, layers)
+		join_net(board, copper, inside, net, layers, _guard_for(net, guard))
 	trim_dangling(board, sorted({ripup.net for ripup in plan.ripups}))
 
 
@@ -768,9 +812,11 @@ def _is_noisy(item: pcbnew.BOARD_CONNECTED_ITEM) -> bool:
 	return bool(NOISY_NET.search(item.GetNetname()))
 
 
-def noisy_routing(board: pcbnew.BOARD) -> Escape:
+def routed_copper(board: pcbnew.BOARD, nets: re.Pattern[str]) -> Escape:
 	routed = [
-		item for item in board.GetTracks() if _is_noisy(item) and not item.IsLocked()
+		item
+		for item in board.GetTracks()
+		if nets.search(item.GetNetname()) and not item.IsLocked()
 	]
 	tracks = tuple(
 		Track(
@@ -789,6 +835,10 @@ def noisy_routing(board: pcbnew.BOARD) -> Escape:
 		if item.Type() == pcbnew.PCB_VIA_T
 	)
 	return Escape(tracks, vias)
+
+
+def merge_escapes(first: Escape, second: Escape) -> Escape:
+	return Escape(first.tracks + second.tracks, first.vias + second.vias)
 
 
 def noise_shadow(board: pcbnew.BOARD) -> Polygon | MultiPolygon:
@@ -829,14 +879,9 @@ def add_noise_shadow(board: pcbnew.BOARD, shadow: Polygon | MultiPolygon) -> Non
 		board.Add(zone)
 
 
-def drop_noise_shadow(board: pcbnew.BOARD) -> None:
-	for zone in list(board.Zones()):
-		if zone.GetZoneName() == NOISE_SHADOW_ZONE:
-			board.Delete(zone)
-
-
 def tidy(board: pcbnew.BOARD, board_dir: Path, side: Side) -> None:
 	drop_empty_tracks(board)
+	drop_dangling_tracks(board)
 	drop_dangling_vias(board)
 	_planes(board, board_dir, side)
 
@@ -847,15 +892,21 @@ def route_half(board_dir: Path, side: Side, work_dir: Path, passes: int) -> DrcS
 	stack = load_stack(board_dir)
 	prepare(board, board_dir, side)
 	autoroute(board, stack, work_dir, NOISY_ROUTER_PASSES)
-	noisy = noisy_routing(board)
+	routed = routed_copper(board, NOISY_NET)
 	prepare(board, board_dir, side)
-	add_escape(board, noisy)
+	add_escape(board, routed)
 	join_leftovers(board, stack, NOISY_NET)
+	noisy = merge_escapes(routed, routed_copper(board, NOISY_NET))
 	lock_routing(board, NOISY_NET)
 	add_noise_shadow(board, noise_shadow(board))
 	autoroute(board, stack, work_dir, passes)
-	drop_noise_shadow(board)
+	join_leftovers(board, stack, ANALOG_NET)
+	analog = routed_copper(board, ANALOG_NET)
+	prepare(board, board_dir, side)
+	add_escape(board, merge_escapes(noisy, analog))
+	autoroute(board, stack, work_dir, passes)
 	join_leftovers(board, stack)
+	join_planes(board, stack)
 	tidy(board, board_dir, side)
 	save_board(board, target, stack)
 	return drc(target)
@@ -866,6 +917,7 @@ def finish_half(board_dir: Path, side: Side, target: Path) -> DrcSummary:
 	stack = load_stack(board_dir)
 	for plan in FINISH[side]:
 		finish(board, stack, plan)
+	join_planes(board, stack)
 	tidy(board, board_dir, side)
 	save_board(board, target, stack)
 	return drc(target)

@@ -10,7 +10,6 @@ from kb.route import (
 	NOISE_SHADOW_ZONE,
 	add_noise_shadow,
 	copper_shape,
-	drop_noise_shadow,
 	export_dsn,
 	plane_dsn,
 	prepare,
@@ -238,8 +237,7 @@ def test_noise_shadow_becomes_in2_wire_keepout(tmp_path: Path) -> None:
 	dsn = tmp_path / "board.dsn"
 	export_dsn(board, dsn, load_stack(BOARD_DIR))
 	assert '(wire_keepout "" (polygon In2.Cu' in dsn.read_text()
-	drop_noise_shadow(board)
-	assert all(zone.GetZoneName() != NOISE_SHADOW_ZONE for zone in board.Zones())
+	assert [zone.GetZoneName() for zone in board.Zones()].count(NOISE_SHADOW_ZONE) == 1
 
 
 def test_router_is_deterministic(tmp_path: Path) -> None:
