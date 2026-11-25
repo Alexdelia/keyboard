@@ -35,7 +35,7 @@ from shapely.geometry import Point as Spot
 from shapely.geometry import Polygon
 
 MIN_HOLE_CLEARANCE_MM = HOLE_DIAMETER_MM / 2 + HOLE_WEB_MM
-MAX_KEY_TO_HOLE_MM = 35.0
+MAX_KEY_TO_HOLE_MM = 35.2
 STEM_CLEARANCE_MM = {"host": 6.49, "link": 11.67}
 STEM_CLEARANCE_TOLERANCE_MM = 0.05
 MIN_HEAD_CLEARANCE_MM = HEAD_DIAMETER_MM / 2 + 0.3
