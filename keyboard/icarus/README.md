@@ -18,6 +18,7 @@ All numbers are mm. Frame: left half, origin = middle column home key, x toward 
 | `channels.json` | key to mux channel, GPIO map |
 | `placement.json` | pose of every non-key part |
 | `pcb/`, `plate/`, `drawing/` | generated, never edit by hand (`pcb/` placement: `python -m kb.place`, routing: `python -m kb.route [left] [right]`; `drawing/`: `python -m kb.drawing`) |
+| `fab/` | generated, git-ignored, JLCPCB order files per half: `<side>-gerbers.zip` (Gerbers + drill), `<side>-bom.csv`, `<side>-cpl.csv` (`python -m kb.fab`). CPL rotation corrections only for SOT-23, TSSOP, HRO USB-C (`JLC_ROTATION_DEG`); check every part in JLC's placement preview before paying |
 
 ## Board shape (`board.json`)
 

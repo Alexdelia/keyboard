@@ -15,3 +15,6 @@ __pycache__/
 # kicad
 *.kicad_prl
 *.lck
+
+# fab
+/keyboard/icarus/fab/
